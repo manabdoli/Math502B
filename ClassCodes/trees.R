@@ -36,10 +36,11 @@ rf_mse <- mean((rf_pred - test_data$mpg)^2) # mean squared error
 cat("MSE of random forest model:", rf_mse, "\n")
 
 # Fit a boosted model with 100 trees and a shrinkage parameter of 0.1
+set.seed(123)
 boost_model <- gbm(mpg ~ ., data = train_data,
                    distribution = "gaussian", n.trees = 100, shrinkage = 0.1,
                    # To avoid error: `nTrain * bag.fraction <= n.minobsinnode`
-                   bag.fraction = .5, train.fraction = 1, n.minobsinnode=7)
+                   bag.fraction = .5, train.fraction = 1, n.minobsinnode=3)
 boost_pred <- predict(boost_model, newdata = test_data, n.trees = 100)
 boost_mse <- mean((boost_pred - test_data$mpg)^2) # mean squared error
 cat("MSE of boosted model:", boost_mse, "\n")

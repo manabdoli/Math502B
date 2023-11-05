@@ -1,7 +1,7 @@
 #' Random Mask Generator
 
 k2ij <- function(nx, k){
-  c((k-1)%%nx+1, (k-1)%/%nx+1)
+  cbind((k-1)%%nx+1, (k-1)%/%nx+1)
 }
 
 rMask <- function(x # True Mask
@@ -24,18 +24,23 @@ rMask <- function(x # True Mask
     x+noise_tilt+noise_mask
 }
 
-# Load True Masks
-if(file.exists('mask2m.rda')){
-  load('mask2m.rda')
-} else{
-  x <- readMat(file.choose())
-  mask2m <- x$mask2m
-  save(mask2m, file = 'mask2m.rda')
-}
+## Example
+if(FALSE){
+  # Load True Masks
+  if(file.exists('mask2m.rda')){
+    load('mask2m.rda')
+  } else{
+    library(R.matlab)
+    x <- readMat(file.choose())
+    mask2m <- x$mask2m
+    save(mask2m, file = 'mask2m.rda')
+  }
 
-str(mask2m)
-tM11 <- mask2m[1,1,];
-rM11 <- rMask(tM11, tilt_err = 1, mask_err = .5, az_cover = 2*pi);
-plot(tM11, cex=.5, col=adjustcolor('red', .3))
-lines(rM11, col=adjustcolor('blue', .5))
-points(rM11, pch='.', cex=2)
+  str(mask2m)
+  tM11 <- mask2m[1,1,];
+  rM11 <- rMask(tM11, tilt_err = 1, mask_err = .5, az_cover = 2*pi);
+  plot(tM11, cex=.5, col=adjustcolor('red', .3))
+  lines(rM11, col=adjustcolor('blue', .5))
+  points(rM11, pch='.', cex=2)
+
+}
