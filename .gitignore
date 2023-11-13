@@ -1,6 +1,8 @@
 ISLR
 *.rda
 *.mat
+*.csv
+
 .DS_Store
 # History files
 .Rhistory

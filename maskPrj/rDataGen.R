@@ -30,12 +30,12 @@ for(i in 2:nrnd){
   kMask <- rMaskmmm(x, tilt_err = .1, twist_err = 5, mask_err = 2,
                  orientation_err = 5)
   X <- rbind(X, kMask$masks)
-  tiltDeg <- rbind(kMask$tiltDeg)
-  twistDeg <- rbind(twistDeg, kMask$twistDeg)
-  phShift <- rbind(phShift, kMask$phShift)
+  tiltDeg <- c(tiltDeg, kMask$tiltDeg)
+  twistDeg <- c(twistDeg, kMask$twistDeg)
+  phShift <- c(phShift, kMask$phShift)
 }
 
-rm(x, kMaks)
+rm(x, kMask)
 
 loss <- function(y, yhat, method=c("distance", "mismatch"), xy=pos){
   mthd <- match.arg(method[1], c("distance", "mismatch"))
@@ -50,3 +50,4 @@ loss <- function(y, yhat, method=c("distance", "mismatch"), xy=pos){
 maskData <- list(x=X, y=Y, pos=pos, loss=loss, tiltDeg=tiltDeg,
                  twistDeg=twistDeg, phShift=phShift)
 save(maskData, file = 'MaskData.rda')
+rm(phShift, twistDeg, tiltDeg, X, Y)

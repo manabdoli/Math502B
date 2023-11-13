@@ -1,0 +1,36 @@
+---
+title: "Location by Mask"
+author: "Mansour Abdoli, PhD"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data
+The mask data for a 304x304 grid is provided in `mask2m_16_16.mat`. Each mask includes 361 data points. 
+
+The `rDataGen.R` file reads the dataset, creates an `R` equivalent, named `mask2m.rda`, and use it to generate a training dataset called `MaskData.rda`. The training file consists of a list, named `maskData`, with the following elements:
+
+- `x`: The original mask data, augmented with 9 noisy copies randomly generated. This is a two dimensional dataset: 924160 (304x304x10) rows and 361 columns.
+- `y`: Is the actual index of each mask. 
+- `pos`: which is the (i, j) location of each mask; `pos`=k2ij(304, y)
+- `loss`: a loss function based on index `y` which can use the distance or mismatch as the loss.
+- `tiltDeg`: is the random tilt angle added to each mask.
+- `twistDeg`: is the random twist angle added to each mask.
+- `phShift`: is the random phase shift applied to the mask before tilted and twisted.
+
+## Location and Orientation Prediction
+The problem to be solved is to find a model for predicting the location and orientation of an observer given the mask that observer sees. 
+
+Two main approaches can be taken:
+
+- Using a location index $Y$ as a single response variable, and finding position $(i, j)$ and orientation $p$ afterward.
+- Using a multi-response approach where position $(i, j)$ and orientation $p$ are predicted at the same time.
+
+## Dimensionality Reduction
+Due to large size of the data, one could use PCA or Fourier Transformation to reduce the number of the data. 
+
+
