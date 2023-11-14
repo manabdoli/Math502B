@@ -43,9 +43,15 @@ loss <- function(y, yhat, method=c("distance", "mismatch"), xy=pos){
 }
 maskData <- list(x=X, y=Y, pos=pos, loss=loss, tiltDeg=tiltDeg,
                  twistDeg=twistDeg, phShift=phShift)
-save(maskData, file = 'MaskData100thin.rda')
+save(maskData, file = 'NoisyData100thin.rda')
 rm(X, Y, pos, phShift, twistDeg, tiltDeg)
 
+write.csv(maskData$x, 'Noisy100ThinData.csv', row.names = FALSE)
+write.csv(maskData$y, 'Noisy100ThinData_y.csv', row.names = FALSE)
+write.csv(maskData$tiltDeg, 'Noisy100ThinData_tilt.csv', row.names = FALSE)
+write.csv(maskData$twistDeg, 'Noisy100ThinData_twist.csv', row.names = FALSE)
+write.csv(maskData$phShift, 'Noisy10D0Thinata_shift.csv', row.names = FALSE)
+write.csv(pos, 'ThinDataPosition.csv', row.names = FALSE)
 
 
 # 2 Random Mask for Cluster Data ####
