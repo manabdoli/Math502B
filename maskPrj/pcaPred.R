@@ -1,31 +1,6 @@
 # PCA ####
-pca_spree <- function(x, ...){
-  with(x, barplot(sdev^2/(sdev[1]^2), ylim=c(0, 1.1), 1, 0, border = NA, ...))
-  with(x, lines(1:length(sdev)-.5, cumsum(sdev^2)/sum(sdev^2), type='b'))
-}
+library(Math502B)
 
-pca_reconstr <- function(x, nPC=1){
-  y <- x$x[, 1:nPC] %*% t(x$rotation[, 1:nPC])
-  if(all(x$scale != FALSE)){
-    y <- scale(y, center = FALSE , scale=1/x$scale)
-  }
-  if(all(x$center != FALSE)){
-    y <- scale(y, center = -1 * x$center, scale=FALSE)
-  }
-  y
-}
-
-k2ij <- function(nx, k){
-  cbind((k-1)%%nx+1, (k-1)%/%nx+1)
-}
-
-thinIJs <- function(x, by=10, startIJ=c(1,1)){
-  if(length(by)==1) by <- c(by, by)
-  if(length(startIJ)==1) startIJ <- c(startIJ, startIJ)
-  Is <- seq(startIJ[1], dim(x)[1], by[1])
-  Js <- seq(startIJ[2], dim(x)[2], by[2])
-  list(Is=Is, Js=Js)
-}
 
 # Data ####
 if(!grepl(pattern = 'maskPrj$', getwd())) setwd('maskPrj')
