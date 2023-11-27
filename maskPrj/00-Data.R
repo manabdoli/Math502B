@@ -1,5 +1,5 @@
 #' Reducing Data Size:
-#'  1. Thining Data
+#'  1. Thinning Data
 #'  2. Limiting to a Cluster
 #'
 library(Math502B)

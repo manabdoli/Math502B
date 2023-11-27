@@ -9,6 +9,8 @@ library(Math502B)
 if(!grepl(pattern = 'maskPrj$', getwd())) setwd('maskPrj')
 if(!exists('thinMask')) load('thinMask31x31.rda')
 str(thinMask)
+# Turn into 2D matrix
+dim(thinMask) <- c(prod(dim(thinMask)[1:2]), dim(thinMask)[3])
 
 ## generate 100 random sets
 source('rMaskGen.R')
@@ -44,7 +46,7 @@ loss <- function(y, yhat, method=c("distance", "mismatch"), xy=pos){
 maskData <- list(x=X, y=Y, pos=pos, loss=loss, tiltDeg=tiltDeg,
                  twistDeg=twistDeg, phShift=phShift)
 save(maskData, file = 'NoisyData100thin.rda')
-rm(X, Y, pos, phShift, twistDeg, tiltDeg)
+rm(X, Y, phShift, twistDeg, tiltDeg)
 
 write.csv(maskData$x, 'Noisy100ThinData.csv', row.names = FALSE)
 write.csv(maskData$y, 'Noisy100ThinData_y.csv', row.names = FALSE)
@@ -52,7 +54,7 @@ write.csv(maskData$tiltDeg, 'Noisy100ThinData_tilt.csv', row.names = FALSE)
 write.csv(maskData$twistDeg, 'Noisy100ThinData_twist.csv', row.names = FALSE)
 write.csv(maskData$phShift, 'Noisy10D0Thinata_shift.csv', row.names = FALSE)
 write.csv(pos, 'ThinDataPosition.csv', row.names = FALSE)
-
+rm(pos, maskData, thinMask, kMask)
 
 # 2 Random Mask for Cluster Data ####
 ## 2.0 Load Mask
@@ -95,11 +97,13 @@ loss <- function(y, yhat, method=c("distance", "mismatch"), xy=pos){
 maskData <- list(x=X, y=Y, class=C, pos=pos, loss=loss,
                  tiltDeg=tiltDeg, twistDeg=twistDeg, phShift=phShift)
 save(maskData, file = 'NoisyData10-6Cluster.rda')
-rm(X, Y, C, pos, phShift, twistDeg, tiltDeg)
+rm(X, Y, C, phShift, twistDeg, tiltDeg)
 write.csv(maskData$x, 'Noisy10Data.csv', row.names = FALSE)
 write.csv(maskData$y, 'Noisy10Data_y.csv', row.names = FALSE)
 write.csv(maskData$class, 'Noisy10Data_class.csv', row.names = FALSE)
 write.csv(maskData$tiltDeg, 'Noisy10Data_tilt.csv', row.names = FALSE)
 write.csv(maskData$twistDeg, 'Noisy10Data_twist.csv', row.names = FALSE)
 write.csv(maskData$phShift, 'Noisy10Data_shift.csv', row.names = FALSE)
+write.csv(pos, 'NoisyDataPosition.csv', row.names = FALSE)
+rm(pos, maskData, kMask, mask2m, mask6Cluster)
 
