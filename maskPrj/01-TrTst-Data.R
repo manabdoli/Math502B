@@ -19,7 +19,7 @@ m <- dim(thinMask)[1]
 k <- nrnd * m
 pos <- k2ij(31, 1:m)
 
-Y <- rep(1:k, nrnd)
+Y <- rep(1:m, nrnd)
 X <- matrix(0, nrow = k, ncol = dim(thinMask)[2])
 tiltDeg <- rep(0, k)
 twistDeg <- rep(0, k)
