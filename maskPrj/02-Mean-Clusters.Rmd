@@ -1,0 +1,88 @@
+---
+title: "Creating Clusters based on Mean (DC Component)"
+author: "Mansour Abdoli, PhD"
+date: "Last Update: `r Sys.Date()`"
+output: 
+  html_notebook:
+    toc: true
+---
+
+## Overview
+
+In this exercise, the cluster to which a mask is assigned to is predicted using a NNET approach. Here are the steps:
+
+1. create/load random masks (here we load pre-created random masks)
+2. split into train and test
+3. train
+4. test
+
+### Load Noisy Data with Clusters
+
+```{r}
+if(!grepl(pattern = 'maskPrj$', getwd())) setwd('maskPrj')
+if(!exists('maskData')) load('NoisyData10-6Cluster.rda')
+str(maskData)
+```
+
+### Split into train and test
+
+Only the train index is randomly generated:
+```{r}
+set.seed(123)
+trIdx <- sample.int(dim(maskData$x)[1], .80*dim(maskData$x)[1])
+```
+
+### Train a NNET Model
+
+Data is loaded and **clean** clusters are encoded into the one-hot format:
+```{r}
+# Load the keras library
+library(keras)
+C_train <- to_categorical(maskData$cleanClass[trIdx]-1)
+C_test <- to_categorical(maskData$cleanClass[-trIdx]-1)
+```
+
+A model is defined with the number of output classes, and the number of inputs, and one hidden layer that is twice the size of the input. The size of the hidden layer and the number of hidden layers can be changed to find an optimal setting, a process that could be very time comsuming:
+
+```{r}
+levels(factor(maskData$class))
+k = 6
+# Build a sequential model with 361 inputs, 712 hidden neurons and k outputs
+model <- keras_model_sequential() %>%
+  layer_dense(units = 722, activation = "relu", input_shape = c(361)) %>%
+  layer_dense(units = k, activation = "softmax")
+
+# Compile the model with categorical crossentropy loss and adam optimizer
+model %>% compile(
+  loss = "categorical_crossentropy", # -1/N Sum_i{1 tp N}(Sum_j{1:C}(y_ij * log(p_ij))):
+  # y_ij is one-hot coding of the class label; p_ij is the association to class j
+  optimizer = "adam",
+  metrics = c("accuracy")
+)
+```
+
+Now the actual training is performed:
+```{r}
+# Train the model for 100 epochs with batch size of 32
+history <- model %>% fit(
+  x = as.matrix(maskData$x[trIdx,]),
+  y = C_train,
+  epochs = 20,
+  batch_size = 32, #default value
+  validation_split = 0.2
+)
+```
+
+```{r}
+plot(history, smooth = FALSE)
+
+```
+
+### Test the Model
+The performance of the model is measured on the test data:
+
+```{r}
+model %>% evaluate(maskData$x[-trIdx,], C_test) -> nnetAccur
+nnetAccur
+```
+
