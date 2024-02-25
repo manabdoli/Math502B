@@ -15,10 +15,8 @@ xyKmClsCenters <- as.matrix(read.csv('PosComplete-FeatursFull_KmeanXY6Centers.cs
 kmCls <- sort(unique(xyKmCls))
 kmClsK <- length(kmCls)
 
-xyKmClsCenterPos <- lapply(1:kmClsK,
-                           \(j) cbind(median(xyPos[xyKmCls==j, 1]),
-                                      median(xyPos[xyKmCls==j, 2]))
-) |> do.call(what='rbind')
+xyKmClsCenterPos <- xyKmClsCenterPos <- clusterCenter(xyPos, xyKmCls)
+
 
 ClusCols <- hsv(h = (1:kmClsK)/kmClsK, s = 1, v = .8, alpha = .5)
 plot(xyPos, pch=16, cex=.5, col=ClusCols[xyKmCls])
@@ -28,6 +26,7 @@ points(xyKmClsCenterPos, pch=as.character(1:kmClsK), cex=2, col='black')
 kFold <- 10
 TrTsIdx <- split(data.frame(i=sample(dim(xyFeatures)[1])), (1:dim(xyFeatures)[1]) %% kFold)
 
+cat('\n', kFold, '-fold cross validation, using FullFeature+XY 6-Kmeans:\n')
 MCRs <- MSEs <- posMSEs <- rep(0, kFold)
 for(m in 1:kFold){
   trData <- xyFeatures[-TrTsIdx[[m]][[1]], ]
@@ -39,7 +38,8 @@ for(m in 1:kFold){
   tsPos <- xyPos[TrTsIdx[[m]][[1]], ]
 
 
-  kmXY6Model <- clusterModel(x = trData, y = trResp, center = xyKmClsCenters)
+  #kmXY6Model <- clusterModel(x = trData, y = trResp, center = xyKmClsCenters)
+  kmXY6Model <- clusterModel(x = trData, y = trResp)
 
   prdDist <- predict(kmXY6Model, newdata = tsData, type = 'dist')
   prdClass <- predict(kmXY6Model, newdata = tsData, type = 'resp')

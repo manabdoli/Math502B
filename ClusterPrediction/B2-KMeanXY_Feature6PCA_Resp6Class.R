@@ -9,16 +9,18 @@ xyFeatures <- matrix(scan('PosComplete-FeatursFull_data.csv',
                      ncol=361)
 xyPos <- as.matrix(read.csv('PosComplete-FeatursFull_pos.csv'))
 
-xyKmCls <- as.matrix(read.csv('PosComplete-FeatursFull_Kmean6.csv'))
-xyKmClsCenters <- as.matrix(read.csv('PosComplete-FeatursFull_Kmean6Centers.csv'))
+pcaRotation <- as.matrix(read.csv('PosComplete-Featurs6PCA_rotation.csv'))
+
+xyFeatures <- x2pca(xyFeatures, pcaRotation)
+
+## 6 Clusters from 6 PCAs
+xyKmCls <- as.matrix(read.csv('PosComplete-Featurs6PCA_KmeanXY6.csv'))
+xyKmClsCenters <- as.matrix(read.csv('PosComplete-Featurs6PCA_KmeanXY6Centers.csv'))
 
 kmCls <- sort(unique(xyKmCls))
 kmClsK <- length(kmCls)
 
-xyKmClsCenterPos <- lapply(1:kmClsK,
-                           \(j) cbind(median(xyPos[xyKmCls==j, 1]),
-                                      median(xyPos[xyKmCls==j, 2]))
-) |> do.call(what='rbind')
+xyKmClsCenterPos <- clusterCenter(xyPos, xyKmCls)
 
 ClusCols <- hsv(h = (1:kmClsK)/kmClsK, s = 1, v = .8, alpha = .5)
 plot(xyPos, pch=16, cex=.5, col=ClusCols[xyKmCls])
@@ -28,6 +30,7 @@ points(xyKmClsCenterPos, pch=as.character(1:kmClsK), cex=2, col='black')
 kFold <- 10
 TrTsIdx <- split(data.frame(i=sample(dim(xyFeatures)[1])), (1:dim(xyFeatures)[1]) %% kFold)
 
+cat('\n', kFold, '-fold cross validation, using FullFeature 6-Kmeans:\n')
 MCRs <- MSEs <- posMSEs <- rep(0, kFold)
 for(m in 1:kFold){
   trData <- xyFeatures[-TrTsIdx[[m]][[1]], ]
@@ -40,6 +43,7 @@ for(m in 1:kFold){
 
 
   kmXY6Model <- clusterModel(x = trData, y = trResp, center = xyKmClsCenters)
+  #kmXY6Model <- clusterModel(x = trData, y = trResp)
 
   prdDist <- predict(kmXY6Model, newdata = tsData, type = 'dist')
   prdClass <- predict(kmXY6Model, newdata = tsData, type = 'resp')

@@ -20,6 +20,7 @@ write.csv(xy, file = "PosComplete-FeatursFull_pos.csv", row.names = FALSE)
 K <- 10
 cAC <- rSq <- rep(0, K) # Autocorrelation and R-Square
 
+cat('\nK-Means using Full-Features:\n')
 for(k in 1:K){
   fullRespCluster <- kmeans(mask2m, centers = k)
   rSq[k] <- 1-fullRespCluster$tot.withinss/fullRespCluster$totss
@@ -55,6 +56,7 @@ write.csv(fullRespCluster$centers, file = "PosComplete-FeatursFull_Kmean6Centers
 K <- 10
 cAC <- rSq <- rep(0, K) # Autocorrelation and R-Square
 
+cat('\nK-Means using Full-Features+XY:\n')
 for(k in 1:K){
   fullRespCluster <- kmeans(cbind(mask2m, xy), centers = k)
   rSq[k] <- 1-fullRespCluster$tot.withinss/fullRespCluster$totss
@@ -119,34 +121,34 @@ write.csv(fullRespCluster$centers[,1:361], file = "PosComplete-FeatursFull_Kmean
 
 
 
-#' Find closest points to the center
-dCols <- colorRampPalette(colors = c(adjustcolor('tomato', .5),
-                                     adjustcolor('skyblue', .2)))(101)
-
-
-#' C = 1
-C=1
-dsig <- mask2m - matrix(1, nrow=dim(mask2m)[1], ncol=1)%*%
-  fullRespCluster$centers[C, , drop = FALSE]
-dsig <- rowSums(dsig^2)
-dsig <- log(dsig)/log(max(dsig))
-plot(xy[,1], xy[,2], col=dCols[round(dsig*100, 0)+1])
-#' C = 2
-C=2
-dsig <- mask2m - matrix(1, nrow=dim(mask2m)[1], ncol=1)%*%
-  fullRespCluster$centers[C, , drop = FALSE]
-dsig <- rowSums(dsig^2)
-dsig <- log(dsig)/log(max(dsig))
-plot(xy[,1], xy[,2], col=dCols[round(dsig*100, 0)+1])
-
-#' C = 3
-C=3
-dsig <- mask2m - matrix(1, nrow=dim(mask2m)[1], ncol=1)%*%
-  fullRespCluster$centers[C, , drop = FALSE]
-dsig <- rowSums(dsig^2)
-dsig <- log(dsig)/log(max(dsig))
-plot(xy[,1], xy[,2], col=dCols[round(dsig*100, 0)+1])
-
-
-#
-
+#' #' Find closest points to the center
+#' dCols <- colorRampPalette(colors = c(adjustcolor('tomato', .5),
+#'                                      adjustcolor('skyblue', .2)))(101)
+#'
+#'
+#' #' C = 1
+#' C=1
+#' dsig <- mask2m - matrix(1, nrow=dim(mask2m)[1], ncol=1)%*%
+#'   fullRespCluster$centers[C, , drop = FALSE]
+#' dsig <- rowSums(dsig^2)
+#' dsig <- log(dsig)/log(max(dsig))
+#' plot(xy[,1], xy[,2], col=dCols[round(dsig*100, 0)+1])
+#' #' C = 2
+#' C=2
+#' dsig <- mask2m - matrix(1, nrow=dim(mask2m)[1], ncol=1)%*%
+#'   fullRespCluster$centers[C, , drop = FALSE]
+#' dsig <- rowSums(dsig^2)
+#' dsig <- log(dsig)/log(max(dsig))
+#' plot(xy[,1], xy[,2], col=dCols[round(dsig*100, 0)+1])
+#'
+#' #' C = 3
+#' C=3
+#' dsig <- mask2m - matrix(1, nrow=dim(mask2m)[1], ncol=1)%*%
+#'   fullRespCluster$centers[C, , drop = FALSE]
+#' dsig <- rowSums(dsig^2)
+#' dsig <- log(dsig)/log(max(dsig))
+#' plot(xy[,1], xy[,2], col=dCols[round(dsig*100, 0)+1])
+#'
+#'
+#' #
+#'
