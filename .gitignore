@@ -2,6 +2,14 @@ ISLR
 *.rda
 *.mat
 *.csv
+*.pdf
+*.xlsx
+out.txt
+*.tgz
+*.zip
+MATLAB/Examples
+*.mat
+*.asv
 
 .DS_Store
 # History files
