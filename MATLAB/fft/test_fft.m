@@ -2,8 +2,8 @@
 %% Finding Magnitude and Frequency
 n=11; % 10 vs 11
 t=(0:n-1)/n;
-f=1; % works up to 4 for n=10 and to 5 for 11
-z=3+2*sin(2*pi*f*t);
+f=3; % works up to 4 for n=10 and to 5 for 11
+z=3+2*cos(2*pi*f*t);
 
 plot(t, z)
 fftz=fft(z)

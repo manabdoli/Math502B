@@ -13,7 +13,7 @@ function [y] = prop(varargin)
         else
             y = p.Results.x ./(sum(p.Results.x, 2)*ones([1, n]));
         end
-    elseif(dim==1)
+    elseif(p.Results.dim==1)
         if(p.Results.cum)
             y = cumsum(p.Results.x, 1)./(ones([m, 1])*sum(p.Results.x, 1));
         else
