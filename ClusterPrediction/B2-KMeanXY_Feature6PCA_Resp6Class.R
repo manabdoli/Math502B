@@ -1,6 +1,6 @@
 #' Cluster Model
 #'
-#' Full XY, Full Feature:
+#' Full XY, PCA Feature + XY:
 #'
 library(Math502B)
 
@@ -27,28 +27,19 @@ plot(xyPos, pch=16, cex=.5, col=ClusCols[xyKmCls])
 points(xyKmClsCenterPos, pch=as.character(1:kmClsK), cex=2, col='black')
 
 # 10-fold train-test sets
-kFold <- 10
-TrTsIdx <- split(data.frame(i=sample(dim(xyFeatures)[1])), (1:dim(xyFeatures)[1]) %% kFold)
+# A generic Cluster Model based on given Clusters
+xyPCAklsModle <- clusterModel(x = xyFeatures, y = xyKmCls, center = xyKmClsCenters)
 
-cat('\n', kFold, '-fold cross validation, using FullFeature 6-Kmeans:\n')
-MCRs <- MSEs <- posMSEs <- rep(0, kFold)
-for(m in 1:kFold){
-  trData <- xyFeatures[-TrTsIdx[[m]][[1]], ]
-  trResp <- xyKmCls[-TrTsIdx[[m]][[1]], ]
-  trPos <- xyPos[-TrTsIdx[[m]][[1]], ]
+xyPCAbrfResult1 <- kfold_test(x = xyFeatures, y = as.vector(xyKmCls), k = 10,
+                              model = xyPCAklsModle, summarize = TRUE)
+xyPCAbrfResult1dtl <- kfold_test(x = xyFeatures, y = xyKmCls, k = 10,
+                                 model = xyPCAklsModle, summarize = FALSE)
 
-  tsData <- xyFeatures[TrTsIdx[[m]][[1]], ]
-  tsResp <- xyKmCls[TrTsIdx[[m]][[1]], ]
-  tsPos <- xyPos[TrTsIdx[[m]][[1]], ]
+with(xyPCAbrfResult1dtl,
+     cbind(aggregate(y!=yhat, by=list(fold), FUN=mean),
+           aggregate((y-yhat)^2, by=list(fold), FUN=mean))
+)
 
+xyPCAbrfResult1
 
-  kmXY6Model <- clusterModel(x = trData, y = trResp, center = xyKmClsCenters)
-  #kmXY6Model <- clusterModel(x = trData, y = trResp)
-
-  prdDist <- predict(kmXY6Model, newdata = tsData, type = 'dist')
-  prdClass <- predict(kmXY6Model, newdata = tsData, type = 'resp')
-  MCRs[m] <- mean(prdClass!=tsResp)
-  MSEs[m] <- mean((tsData-xyKmClsCenters[prdClass, ])^2)
-  posMSEs[m] <- mean((tsPos-xyKmClsCenterPos[prdClass,])^2)
-  cat('Fold ', m, ': \tMCR=', MCRs[m], '\tMSE=', MSEs[m], '\tPosMSE=', posMSEs[m], '\n')
-}
+with(xyPCAbrfResult1dtl, boxplot((y-yhat)^2~fold))

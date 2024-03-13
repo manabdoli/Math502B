@@ -1,4 +1,4 @@
-#' Cluster CLass: A Generic Distance Based Classification Model
+#' Cluster Class: A Generic Distance Based Classification Model
 #' @param x training data, a numerical matrix
 #' @param y classification for training data
 #' @param center if `mean` (default), uses the mean of each cluster as its center.
@@ -95,4 +95,9 @@ predict.ClusterClass <- function(object, newdata,
   # find closest cluster
   response <- apply(distances, 1, \(x) which.min(x)[1])
   response
+}
+
+# Print overload
+print.ClusterClass <- function(x, ...){
+  str(x)
 }

@@ -3,7 +3,7 @@
 \name{clusterModel}
 \alias{clusterModel}
 \alias{predict.ClusterClass}
-\title{Cluster CLass: A Generic Distance Based Classification Model}
+\title{Cluster Class: A Generic Distance Based Classification Model}
 \usage{
 clusterModel(x, y, center = "mean", dist = "euclidean")
 
