@@ -4,36 +4,20 @@
 #' @param ... additional parameters sent to `image()`.
 #' @return returns the scaled matrix and plots the image.
 #' @export
-mat2img <- function(x, scale=TRUE, ...){
-  dots <- list(...)
-  z <- x
-  n <- 1:dim(z)[1]
-  m <- 1:dim(z)[2]
-  if(length(dim(z)[3])>0){
-    scale01 <- function(x) (x-min(x))/(max(x)-min(x))
-    col <- scale01(z)
-    z <- matrix(1, nrow = length(n), ncol = length(m))
-    if(length(intersect(c('axes', 'xlab', 'ylab', 'xtxt', 'ytxt'), names(dots)))==0){
-      xlab = ''
-      ylab = ''
-      axes = FALSE
-      image(n, m, z, xlab=xlab, ylab=ylab, axes=axes, col=col, ...)
-    } else{
-      image(n, m, z, col=col, ...)
-    }
-  } else{
-    if(scale){
-      mm = min(z); MM=max(z); RR=MM-mm;
-      z=((z-mm)/RR-.5)*255+255/2;
-    }
-    if(length(intersect(c('axes', 'xlab', 'ylab', 'xtxt', 'ytxt'), names(dots)))==0){
-      xlab = ''
-      ylab = ''
-      axes = FALSE
-      image(n, m, z, xlab=xlab, ylab=ylab, axes=axes, ...)
-    } else{
-      image(n, m, z, ...)
-    }
+mat2img <- function(x, rgbFilter=c(1,1,1), add= FALSE,
+                    xleft=0, ybottom=0, xright=1, ytop=1, ...){
+  curdef <- par(mar=c(0,0,0,0)+1, no.readonly = TRUE)
+  on.exit(par(curdef))
+  if(!add)
+    plot(0,0, type='n', xlab = '', ylab = '', axes = FALSE,
+         xlim=c(xleft, xright), ylim=c(ybottom, ytop))
+  if(any(rgbFilter!=1)){
+    xwide <- dim(x)
+    xlong <- c(prod(xwide[1:2]), xwide[3])
+    x <- `dim<-`(
+      `dim<-`(x, xlong)*(matrix(1, nrow = xlong[1])%*%rgbFilter), xwide)
   }
-  invisible(z)
+  x <- (x-min(x))/(max(x)-min(x))
+  rasterImage(as.raster(x), xleft, ybottom, xright, ytop)
+  invisible(x)
 }

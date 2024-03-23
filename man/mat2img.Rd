@@ -4,14 +4,23 @@
 \alias{mat2img}
 \title{Turning a matrix to an image}
 \usage{
-mat2img(x, scale = TRUE, ...)
+mat2img(
+  x,
+  rgbFilter = c(1, 1, 1),
+  add = FALSE,
+  xleft = 0,
+  ybottom = 0,
+  xright = 1,
+  ytop = 1,
+  ...
+)
 }
 \arguments{
 \item{x}{the matrix with numerical values to be used as colors}
 
-\item{scale}{if TRUE, the values are scaled to 0 to 255}
-
 \item{...}{additional parameters sent to \code{image()}.}
+
+\item{scale}{if TRUE, the values are scaled to 0 to 255}
 }
 \value{
 returns the scaled matrix and plots the image.

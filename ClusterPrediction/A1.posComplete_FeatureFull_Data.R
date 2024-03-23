@@ -9,7 +9,9 @@ str(mask2m)
 
 #' Flatten the data
 nRow <- dim(mask2m)[1]
-dim(mask2m) <- c(prod(dim(mask2m)[1:2]), dim(mask2m)[3])
+nCol <- dim(mask2m)[2]
+nObs <- dim(mask2m)[3]
+dim(mask2m) <- c(nRow*nCol, nObs)
 
 xy <- k2ij(nx = 304, 1:dim(mask2m)[1]) |> `colnames<-`(c('x', 'y'))
 

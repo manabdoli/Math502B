@@ -11,15 +11,15 @@ freqMag.vector <- function(fftx){
   if((n%%2)==0){
     # even samples
     freq <- 0:(n/2)
-    mag <- fftx[freq+1]
+    mag <- fftx[freq+1]/n
     # Scale to return magnitude in time domain
-    mag[freq[-1]] <- mag[freq[-1]]*2/n
+    mag[freq[-(1:2)]] <- mag[freq[-(1:2)]]*2
   } else{
     # odd samples
     freq <- 0:((n-1)/2)
-    mag <- fftx[freq+1]
+    mag <- fftx[freq+1]/n
     # Scale to return magnitude in time domain
-    mag[freq[-1]+1] <- mag[freq[-1]+1]*2/n
+    mag[freq[-1]+1] <- mag[freq[-1]+1]*2
   }
   # compute angle
   ang <- Arg(mag)
@@ -33,15 +33,15 @@ freqMag.matrix <- function(fftx){
   if((mn[2]%%2)==0){
     # even samples
     freq <- 0:(mn[2]/2)
-    mag <- fftx[1:mn[1], freq+1]
+    mag <- fftx[1:mn[1], freq+1]/mn[2]
     # Scale to return magnitude in time domain
-    mag[, freq[-1]] <- mag[, freq[-1]]*2/mn[2]
+    mag[, freq[-(1:2)]] <- mag[, freq[-(1:2)]]*2
   } else{
     # odd samples
     freq <- 0:((mn[2]-1)/2)
-    mag <- fftx[1:mn[1], freq+1]
+    mag <- fftx[1:mn[1], freq+1]/mn[2]
     # Scale to return magnitude in time domain
-    mag[, freq[-1]+1] <- mag[, freq[-1]+1]*2/mn[2]
+    mag[, freq[-1]+1] <- mag[, freq[-1]+1]*2
   }
   # compute angle
   ang <- Arg(mag)

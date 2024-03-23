@@ -2,10 +2,19 @@
 % Please edit documentation in R/k2ij.R
 \name{k2ij}
 \alias{k2ij}
-\title{Vector k to Matrix (i,j)}
+\title{Vector position index k to Matrix position index (i,j)}
 \usage{
-k2ij(nx, k)
+k2ij(nrow, k)
+}
+\arguments{
+\item{nrow}{the number of rows in the matrix representation of data.}
+
+\item{k}{the list of linear position indexes.}
+}
+\value{
+a bi-column matrix containing (i, j), showing the equivalent position for
+positions in k in a linear presentation of a matrix with \code{nrow} rows.
 }
 \description{
-Vector k to Matrix (i,j)
+Vector position index k to Matrix position index (i,j)
 }
