@@ -10,6 +10,7 @@ out.txt
 MATLAB/Examples
 *.mat
 *.asv
+*.png
 
 .DS_Store
 # History files
