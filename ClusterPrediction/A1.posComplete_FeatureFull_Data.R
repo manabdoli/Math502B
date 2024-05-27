@@ -13,7 +13,7 @@ nCol <- dim(mask2m)[2]
 nObs <- dim(mask2m)[3]
 dim(mask2m) <- c(nRow*nCol, nObs)
 
-xy <- k2ij(nx = 304, 1:dim(mask2m)[1]) |> `colnames<-`(c('x', 'y'))
+xy <- k2ij(304, 1:dim(mask2m)[1]) |> `colnames<-`(c('x', 'y'))
 
 write.csv(mask2m, file = "PosComplete-FeatursFull_data.csv", row.names = FALSE)
 write.csv(xy, file = "PosComplete-FeatursFull_pos.csv", row.names = FALSE)

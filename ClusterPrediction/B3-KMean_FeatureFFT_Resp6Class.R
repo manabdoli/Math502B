@@ -22,6 +22,7 @@ nil <- sapply(1:dim(sFreq)[1], \(k) sEspec[k,] <<-
                 cumsum(prop.table(Espec[k,sFreq[k,]+1])));
 # Plotting the first three significant frequencies
 mat2img(`dim<-`(scale(sFreq[,2:4], F), c(304, 304, 3)))
+mat2img(`dim<-`(log(scale(sFreq[,2:4], F)), c(304, 304, 3)))
 
 sigCols <- apply(sEspec<.95, 1, \(r){
   ltz <- which(r)

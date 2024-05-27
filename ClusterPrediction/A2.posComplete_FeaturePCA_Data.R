@@ -11,7 +11,7 @@ str(mask2m)
 nRow <- dim(mask2m)[1]
 dim(mask2m) <- c(prod(dim(mask2m)[1:2]), dim(mask2m)[3])
 
-xy <- k2ij(nx = 304, 1:dim(mask2m)[1]) |> `colnames<-`(c('x', 'y'))
+xy <- k2ij(304, 1:dim(mask2m)[1]) |> `colnames<-`(c('x', 'y'))
 
 mask2mPCA <- prcomp(mask2m)
 mask2mPCA <- pca_spree(mask2mPCA, xlim=c(0, 15))
