@@ -12,6 +12,10 @@ MATLAB/Examples
 *.asv
 *.png
 
+*.html
+*_files/
+ClassCodes/
+
 .DS_Store
 # History files
 .Rhistory

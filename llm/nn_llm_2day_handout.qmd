@@ -1,0 +1,393 @@
+
+---
+title: "2‑Day Practical Handout: Neural Networks & LLMs (R • Python • Julia)"
+author: "Your Name"
+date: "2025-08-26"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: show
+  pdf:
+    documentclass: article
+    toc: true
+jupyter: true
+---
+
+> Four 60‑minute sessions across two days. All examples run on a typical laptop (8–16GB RAM). Choose **R**, **Python**, or **Julia** (or mix).
+
+## Learning goals
+- Explain core NN/LLM terminology (neuron, activation, loss, gradient, epoch, batch; token, embedding, attention, transformer).
+- Train a small neural network for classification on a toy dataset.
+- Build and train a tiny character‑level language model on a short text corpus and sample from it.
+- Evaluate models and avoid overfitting with train/validation splits, regularization, and early stopping.
+
+## Prerequisites
+Linear algebra (vectors/matrices, dot products), multivariable calculus (gradients), probability basics.
+
+## Setup (pick one or more languages)
+
+### R (lightweight path)
+```{r}
+install.packages(c("tidyverse","nnet","caret","torch"))
+# One-time torch install (downloads backend):
+torch::install_torch()
+```
+
+### Python (recommended for LLM mini-labs)
+```{bash}
+python -m venv .venv && source .venv/bin/activate
+pip install --upgrade numpy pandas scikit-learn torch
+```
+
+### Julia
+```{julia}
+using Pkg
+Pkg.add(["CSV","DataFrames","Flux","MLDataUtils","Random","Statistics"])
+```
+
+::: callout-tip
+If installs are slow, complete Sessions 1–2 with **R `nnet`** or **Python `scikit-learn`** and skip torch/Flux.
+:::
+
+## Schedule
+
+**Day 1**  
+- **S1 (60m):** Neural network basics + MLP classifier  
+- **S2 (60m):** Training loops, optimization, and evaluation  
+
+**Day 2**  
+- **S3 (60m):** LLM concepts + build a tiny character model  
+- **S4 (60m):** Sampling, embeddings mini‑lab, and extensions  
+
+---
+
+## Shared mini‑datasets (generated on the fly)
+
+### 1) Two‑class spiral for classification
+
+#### R
+```{r}
+make_spiral <- function(n=1000, noise=0.2){
+  set.seed(42)
+  n2 <- n/2
+  t <- seq(0,1,length.out=n2)
+  r <- t*2.5
+  a <- t*4*pi
+  x1 <- c(r*cos(a) + rnorm(n2,0,noise), r*cos(a+pi) + rnorm(n2,0,noise))
+  x2 <- c(r*sin(a) + rnorm(n2,0,noise), r*sin(a+pi) + rnorm(n2,0,noise))
+  y  <- factor(c(rep(0,n2),rep(1,n2)))
+  data.frame(x1,x2,y)
+}
+spiral <- make_spiral()
+head(spiral)
+```
+
+#### Python
+```{python}
+import numpy as np
+def make_spiral(n=1000, noise=0.2, seed=42):
+    rng = np.random.default_rng(seed)
+    n2 = n//2
+    t = np.linspace(0,1,n2)
+    r = t*2.5
+    a = t*4*np.pi
+    x1 = np.concatenate([r*np.cos(a) + rng.normal(0,noise,n2),
+                         r*np.cos(a+np.pi) + rng.normal(0,noise,n2)])
+    x2 = np.concatenate([r*np.sin(a) + rng.normal(0,noise,n2),
+                         r*np.sin(a+np.pi) + rng.normal(0,noise,n2)])
+    y  = np.concatenate([np.zeros(n2,dtype=int), np.ones(n2,dtype=int)])
+    X = np.stack([x1,x2],axis=1)
+    X, y
+```
+
+#### Julia
+```{julia}
+using Random
+function make_spiral(n::Int=1000, noise::Float64=0.2; seed=42)
+    Random.seed!(seed)
+    n2 = div(n,2)
+    t = range(0,1,length=n2)
+    r = 2.5 .* collect(t)
+    a = 4π .* collect(t)
+    x1 = vcat(r .* cos.(a) .+ noise .* randn(n2), r .* cos.(a .+ π) .+ noise .* randn(n2))
+    x2 = vcat(r .* sin.(a) .+ noise .* randn(n2), r .* sin.(a .+ π) .+ noise .* randn(n2))
+    y  = vcat(zeros(Int,n2), ones(Int,n2))
+    hcat(x1,x2), y
+end
+```
+
+### 2) Tiny text corpus
+```{markdown}
+In mathematics we write x^2 + y^2 = r^2. Proofs rely on axioms and logic.
+Sequences, limits, and derivatives shape analysis. Probability models uncertainty;
+linear algebra powers neural networks via matrix multiplication.
+```
+
+---
+
+# Day 1 — Session 1: NN basics + MLP classifier
+
+## Key terms
+Neuron (affine + nonlinearity), activation (ReLU/tanh/sigmoid), loss (cross‑entropy), gradient, optimizer (SGD/Adam), epoch/batch, overfitting.
+
+## Math core
+One layer: \(f(x)=\sigma(Wx+b)\). Softmax for \(k\) classes:  
+\[ \hat{y} = \operatorname{softmax}(Wx+b), \quad L = -\sum_{i=1}^k y_i \log(\hat{y}_i). \]  
+Gradient descent: \(\theta \leftarrow \theta - \eta\, \nabla_\theta L\).
+
+## Quick win (R, `nnet`)
+```{r}
+library(tidyverse); library(nnet); library(caret)
+set.seed(1)
+spiral <- make_spiral(1000,0.2)
+idx <- createDataPartition(spiral$y,p=0.8,list=FALSE)
+train <- spiral[idx,]; test <- spiral[-idx,]
+m <- nnet(y ~ x1 + x2, data=train, size=16, decay=1e-3, maxit=500, trace=FALSE)
+pred <- predict(m, newdata=test, type="class")
+mean(pred==test$y)
+```
+
+## Quick win (Python, scikit‑learn)
+```{python}
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score
+X,y = make_spiral(1000,0.2)
+Xtr,Xte,ytr,yte = train_test_split(X,y,test_size=0.2,random_state=1,stratify=y)
+clf = MLPClassifier(hidden_layer_sizes=(16,), activation='tanh', alpha=1e-3, max_iter=1000, random_state=0)
+clf.fit(Xtr,ytr)
+accuracy_score(yte, clf.predict(Xte))
+```
+
+## Quick win (Julia, Flux)
+```{julia}
+using Flux, Random, Statistics
+X,y = make_spiral(1000,0.2)
+Xf = permutedims(Float32.(X))  # 2 × N
+yf = Flux.onehotbatch(y .+ 1, 1:2)
+model = Chain(Dense(2,16,tanh), Dense(16,2), softmax)
+loss(x, y) = Flux.logitcrossentropy(model(x), y)
+opt = Flux.ADAM(1e-2)
+for epoch in 1:2000
+    Flux.train!(loss, params(model), [(Xf, yf)], opt)
+end
+ŷ = onecold(model(Xf)) .- 1
+mean(ŷ .== y)
+```
+
+---
+
+# Day 1 — Session 2: Training loops, optimization, evaluation
+
+## PyTorch training loop (transferable to R torch / Flux)
+```{python}
+import torch, torch.nn as nn
+X_np, y_np = make_spiral(1000,0.2)
+X = torch.tensor(X_np, dtype=torch.float32)
+y = torch.tensor(y_np, dtype=torch.long)
+model = nn.Sequential(nn.Linear(2,16), nn.Tanh(), nn.Linear(16,2))
+opt = torch.optim.Adam(model.parameters(), lr=1e-2)
+loss_fn = nn.CrossEntropyLoss()
+for epoch in range(1000):
+    opt.zero_grad()
+    logits = model(X)
+    loss = loss_fn(logits, y)
+    loss.backward()
+    opt.step()
+float(loss)
+```
+
+## Early stopping via validation split (R)
+```{r}
+set.seed(2)
+idx <- createDataPartition(spiral$y,p=0.8,list=FALSE)
+train <- spiral[idx,]; valid <- spiral[-idx,]
+best <- Inf; best_m <- NULL
+for(s in c(8,16,32)){
+  m <- nnet(y ~ x1 + x2, data=train, size=s, decay=1e-3, maxit=500, trace=FALSE)
+  vpred <- predict(m, newdata=valid, type="class")
+  err <- 1-mean(vpred==valid$y)
+  if(err<best){ best<-err; best_m<-m }
+}
+best
+```
+
+---
+
+# Day 2 — Session 3: LLM concepts + tiny character model
+
+## Key terms
+Token/embedding, self‑attention, positional encoding, pretraining vs fine‑tuning, inference vs training cost.
+
+## Minimal character‑level model (Python, GRU)
+```{python}
+import torch, torch.nn as nn
+text = (
+"In mathematics we write x^2 + y^2 = r^2. Proofs rely on axioms and logic.
+"
+"Sequences, limits, and derivatives shape analysis. Probability models uncertainty;
+"
+"linear algebra powers neural networks via matrix multiplication."
+)
+chars = sorted(list(set(text)))
+stoi = {ch:i for i,ch in enumerate(chars)}
+itos = {i:ch for ch,i in stoi.items()}
+X = torch.tensor([stoi[c] for c in text[:-1]], dtype=torch.long)
+Y = torch.tensor([stoi[c] for c in text[1:]], dtype=torch.long)
+embed = nn.Embedding(len(chars), 16)
+rnn = nn.GRU(16, 64, batch_first=True)
+head = nn.Linear(64, len(chars))
+opt = torch.optim.Adam(list(embed.parameters())+list(rnn.parameters())+list(head.parameters()), lr=2e-2)
+loss_fn = nn.CrossEntropyLoss()
+for epoch in range(400):
+    xemb = embed(X).unsqueeze(0)  # (1,T,16)
+    out,_ = rnn(xemb)
+    logits = head(out).squeeze(0)
+    loss = loss_fn(logits, Y)
+    opt.zero_grad(); loss.backward(); opt.step()
+float(loss)
+# Sampling
+with torch.no_grad():
+    ch = torch.tensor([stoi['I']])
+    h = None; out_chars = []
+    for _ in range(300):
+        emb = embed(ch).unsqueeze(0)
+        o,h = rnn(emb,h)
+        logits = head(o.squeeze(0))
+        p = torch.softmax(logits[-1],dim=0)
+        ch = torch.multinomial(p,1)
+        out_chars.append(itos[int(ch)])
+    "".join(out_chars)
+```
+
+## R (torch) variant
+```{r}
+library(torch)
+text <- "In mathematics we write x^2 + y^2 = r^2. Proofs rely on axioms and logic.
+Sequences, limits, and derivatives shape analysis. Probability models uncertainty;
+linear algebra powers neural networks via matrix multiplication."
+chs <- sort(unique(strsplit(text,"")[[1]]))
+stoi <- setNames(seq_along(chs)-1, chs); itos <- setNames(chs, seq_along(chs)-1)
+X <- torch_tensor(match(strsplit(substr(text,1,nchar(text)-1),"")[[1]], chs)-1, dtype=torch_long())
+Y <- torch_tensor(match(strsplit(substr(text,2,nchar(text)),"")[[1]], chs)-1, dtype=torch_long())
+embed <- nn_embedding(num_embeddings=length(chs), embedding_dim=16)
+rnn <- nn_gru(input_size=16, hidden_size=64, batch_first=TRUE)
+head <- nn_linear(64, length(chs))
+opt <- optim_adam(c(embed$parameters, rnn$parameters, head$parameters), lr=2e-2)
+for(epoch in 1:300){
+  xemb <- embed(X)$unsqueeze(1)$transpose(1,2) # (1,T,16)
+  out <- rnn(xemb)
+  logits <- head(out[[1]]$squeeze(1))
+  loss <- nnf_cross_entropy(logits, Y)
+  opt$zero_grad(); loss$backward(); opt$step()
+}
+loss$item()
+```
+
+## Julia (Flux) variant
+```{julia}
+using Flux, Random
+text = "In mathematics we write x^2 + y^2 = r^2. Proofs rely on axioms and logic.
+" *
+       "Sequences, limits, and derivatives shape analysis. Probability models uncertainty;
+" *
+       "linear algebra powers neural networks via matrix multiplication."
+chs = sort(collect(Set(text)))
+stoi = Dict(c=>i for (i,c) in enumerate(chs))
+itos = Dict(i=>c for (c,i) in stoi)
+X = collect(first.(Iterators.partition(map(c->stoi[c],text[1:end-1]),1)))
+Y = collect(first.(Iterators.partition(map(c->stoi[c],text[2:end]),1)))
+embed = Flux.Embedding(length(chs), 16)
+rnn = Flux.GRU(16,64)
+head = Dense(64, length(chs))
+ps = Flux.params(embed,rnn,head)
+loss() = begin
+  xemb = embed(X)
+  h = Flux.hidden(rnn)
+  ys = Any[]
+  for t in 1:length(X)
+    h = rnn(xemb[:,t], h)
+    push!(ys, head(h))
+  end
+  Flux.logitcrossentropy(hcat(ys...), Flux.onehotbatch(Y, 1:length(chs)))
+end
+opt = ADAM(2e-2)
+for epoch in 1:300
+  Flux.train!(x->loss(), ps, [], opt)
+end
+"done"
+```
+
+---
+
+# Day 2 — Session 4: Sampling, embeddings, extensions
+
+## Temperature & top‑k sampling (Python helper)
+```{python}
+import torch
+def sample_with_temperature(logits, temp=1.0, top_k=None):
+    l = logits / temp
+    if top_k is not None:
+        v, ix = torch.topk(l, top_k)
+        mask = torch.full_like(l, float('-inf'))
+        mask[ix] = v
+        l = mask
+    p = torch.softmax(l, dim=0)
+    return torch.multinomial(p, 1).item()
+```
+
+## Simple TF‑IDF word embeddings + cosine
+
+### R
+```{r}
+library(tidyverse)
+text <- c("math loves matrices", "neural nets love matrix calculus", "probability and linear algebra")
+toks <- strsplit(text, " ")
+terms <- sort(unique(unlist(toks)))
+D <- sapply(toks, function(doc) table(factor(terms, levels=terms)) * 0 + table(factor(doc, levels=terms)))
+idf <- log(length(text) / (rowSums(D>0)+1))
+tfidf <- sweep(D,1,idf,"*")
+cosine <- function(a,b) sum(a*b)/sqrt(sum(a*a)*sum(b*b))
+cosine(tfidf[,1], tfidf[,2])
+```
+
+### Python
+```{python}
+import numpy as np
+text = ["math loves matrices", "neural nets love matrix calculus", "probability and linear algebra"]
+terms = sorted({w for doc in text for w in doc.split()})
+D = np.array([[doc.split().count(t) for doc in text] for t in terms], dtype=float)
+idf = np.log(len(text) / (np.count_nonzero(D,axis=1)+1))
+tfidf = (D.T * idf).T
+cos = lambda a,b: (a@b)/np.sqrt((a@a)*(b@b))
+cos(tfidf[:,0], tfidf[:,1])
+```
+
+### Julia
+```{julia}
+using LinearAlgebra
+text = ["math loves matrices", "neural nets love matrix calculus", "probability and linear algebra"]
+terms = sort(collect(Set(vcat([split(d) for d in text]...))))
+D = [count(==(t), split(doc)) for t in terms, doc in text]
+idf = log.(length(text) ./ (sum(D .> 0, dims=2) .+ 1))
+tfidf = D .* idf
+cos(a,b) = (a' * b) / sqrt((a' * a) * (b' * b))
+cos(tfidf[:,1], tfidf[:,2])
+```
+
+---
+
+## Assessment & Exercises
+- Exit ticket: define token vs embedding; explain the benefit of a validation split.
+- Mini‑project: tune hidden size/learning rate on the spiral MLP and plot decision boundaries and accuracy.
+- Try dropout/L2 regularization; compare to baseline.
+
+## Troubleshooting
+- On CPU‑only laptops, keep hidden sizes small (8–32) and epochs ≤ 500–1000.
+- If the GRU loss explodes, reduce the learning rate from 2e‑2 → 5e‑3.
+
+## Next steps
+- Replace GRU with a single‑head self‑attention layer on characters.
+- Swap the spiral for `iris` and compare linear vs non‑linear decision boundaries.
+- Explore wordpiece tokenization and subword frequency effects (conceptual demo).

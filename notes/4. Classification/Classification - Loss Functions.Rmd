@@ -1,0 +1,58 @@
+---
+title: "Cross-Entropy and Hinge Losses in Supervised Learning"
+output: html_notebook
+---
+
+## Learning Objectives
+- Understand the concepts of Cross-Entropy and Hinge Loss functions.
+- Explore the applications of these loss functions in supervised learning.
+- Learn how to choose the appropriate loss function based on the problem at hand.
+
+## Introduction to Loss Functions
+
+Loss functions play a vital role in supervised learning by quantifying the difference between predicted values and actual labels. They guide the model during training to optimize its parameters for better performance. In this class, we will focus on two common loss functions: Cross-Entropy Loss and Hinge Loss.
+
+## Cross-Entropy Loss
+
+Cross-Entropy Loss, also known as Log Loss, is primarily used in classification problems. It measures the dissimilarity between the predicted probabilities and the true class labels. It works well for problems where the output is a probability distribution over classes.
+
+For a binary classification problem, the Cross-Entropy Loss is calculated as:
+
+$$\text{Cross-Entropy Loss} = -\frac{1}{N} \sum_{i=1}^{N} \left( y_i \log(p_i) + (1 - y_i) \log(1 - p_i) \right)$$
+
+Where:
+- $N$ is the number of samples.
+- $y_i$ is the true label (0 or 1) for sample $i$.
+- $p_i$ is the predicted probability of class 1 for sample $i$.
+
+## Hinge Loss
+
+Hinge Loss is commonly used in Support Vector Machines (SVMs) for binary classification. It encourages correct classification by imposing a penalty when the predicted score is close to the decision boundary.
+
+For a binary classification problem, the Hinge Loss is calculated as:
+
+$$\text{Hinge Loss} = \max(0, 1 - y_i \cdot f(x_i))$$
+
+Where:
+- $y_i$ is the true label (1 or -1) for sample $i$.
+- $f(x_i)$ is the raw prediction score for sample $i$.
+
+## Applications in Supervised Learning
+
+### Cross-Entropy Loss
+- Commonly used in multi-class classification problems.
+- Applied to problems where the output represents class probabilities, e.g., image recognition, text classification.
+
+### Hinge Loss
+- Widely used in Support Vector Machines (SVMs).
+- Useful for problems requiring a clear margin between decision boundaries, e.g., image classification, text categorization.
+
+## Choosing the Right Loss Function
+
+The choice of loss function depends on the problem's nature and goals. Cross-Entropy Loss is suitable for problems with probabilistic interpretations, while Hinge Loss is useful when enforcing margin constraints is crucial.
+
+## Conclusion
+
+Cross-Entropy and Hinge Losses are essential tools in supervised learning, guiding models to make accurate predictions. Understanding their mathematical formulations and application areas will enable you to select the appropriate loss function for your classification tasks. As you continue exploring machine learning, you'll encounter various loss functions tailored to different scenarios, enhancing your ability to build effective models.
+
+Remember, the appropriate choice of loss function contributes to achieving the desired results in machine learning tasks, so choose wisely based on the problem you're solving.
