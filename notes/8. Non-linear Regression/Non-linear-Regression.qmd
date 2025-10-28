@@ -1,0 +1,344 @@
+---
+title: "Non-Linear Regression Models"
+author: "Applied Machine Learning Tutorial"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    number_sections: true
+    theme: flatly
+    highlight: tango
+    code_folding: show
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+---
+# Copilot
+Absolutely, Mansour — here's a Quarto-compatible lesson note scaffold for **"Going Beyond Linearity"**, designed to be modular, pedagogically clear, and implementation-ready in R. It uses `$x$` for inline math and includes code chunks for each method.
+
+---
+
+## 📘 Going Beyond Linearity
+
+Linear models are powerful, but they assume a constant relationship between predictors and response. Many real-world phenomena exhibit **nonlinear patterns**. This lesson explores flexible modeling techniques that go beyond linearity, allowing us to capture complex relationships while balancing interpretability and overfitting.
+
+---
+
+## 🔢 Polynomial Regression
+
+Polynomial regression models nonlinear relationships by including powers of the predictor.
+
+```r
+library(ISLR2)
+library(ggplot2)
+
+# Fit polynomial regression
+fit_poly <- lm(wage ~ poly(age, 4), data = Wage)
+summary(fit_poly)
+
+# Visualize
+ggplot(Wage, aes(x = age, y = wage)) +
+  geom_point(alpha = 0.3) +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 4), color = "blue")
+```
+
+---
+
+## 🪜 Step Functions (Categorization)
+
+Step functions divide the range of $x$ into intervals and fit a constant within each.
+
+```r
+Wage$age_cut <- cut(Wage$age, breaks = c(0, 35, 50, 65, 80))
+
+fit_step <- lm(wage ~ age_cut, data = Wage)
+summary(fit_step)
+
+# Visualize
+ggplot(Wage, aes(x = age, y = wage)) +
+  geom_point(alpha = 0.3) +
+  geom_line(aes(y = predict(fit_step)), color = "red")
+```
+
+---
+
+## 🧱 Basis Functions
+
+Basis functions transform $x$ into a set of features. Polynomial and step functions are examples, but splines and other transformations also qualify.
+
+```r
+# Example: cubic basis
+Wage$cube_age <- Wage$age^3
+fit_basis <- lm(wage ~ age + cube_age, data = Wage)
+summary(fit_basis)
+```
+
+---
+
+## 📐 Regression Splines
+
+Regression splines divide $x$ into intervals and fit piecewise polynomials with continuity constraints.
+
+```r
+library(splines)
+
+fit_spline <- lm(wage ~ bs(age, knots = c(25, 40, 60)), data = Wage)
+summary(fit_spline)
+
+ggplot(Wage, aes(x = age, y = wage)) +
+  geom_point(alpha = 0.3) +
+  geom_line(aes(y = predict(fit_spline)), color = "darkgreen")
+```
+
+---
+
+## 🌊 Smoothing Splines
+
+Smoothing splines automatically choose knots to balance fit and smoothness.
+
+```r
+fit_smooth <- smooth.spline(Wage$age, Wage$wage, cv = TRUE)
+fit_smooth$df  # degrees of freedom chosen by cross-validation
+
+plot(Wage$age, Wage$wage, col = "gray")
+lines(fit_smooth, col = "blue", lwd = 2)
+```
+
+---
+
+## 🧭 Local Regression
+
+Local regression fits simple models in neighborhoods of $x$.
+
+```r
+fit_loess <- loess(wage ~ age, data = Wage, span = 0.2)
+
+ggplot(Wage, aes(x = age, y = wage)) +
+  geom_point(alpha = 0.3) +
+  geom_line(aes(y = predict(fit_loess)), color = "purple")
+```
+
+---
+
+## 🔀 Generalized Additive Models (GAMs)
+
+GAMs combine multiple smooth functions of predictors.
+
+```r
+library(gam)
+
+fit_gam <- gam(wage ~ s(age, df = 5) + s(year, df = 4) + education, data = Wage)
+summary(fit_gam)
+
+plot(fit_gam, se = TRUE, col = "blue")
+```
+
+---
+
+Would you like this scaffold turned into a student-facing Quarto template with exercises and interpretation prompts? I can also help modularize it for interactive teaching.
+
+# Chat GPT
+Here’s a ready-to-use **Quarto lesson note** for **“Going Beyond Linearity”** in R. It includes conceptual background and example R code for:
+
+* Polynomial Regression
+* Step Functions
+* Basis Functions
+* Regression Splines
+* Smoothing Splines
+* Local Regression
+* Generalized Additive Models
+
+---
+
+## Introduction
+
+In multiple linear regression, we assume a *linear relationship* between predictors and response variables. However, in practice, relationships may be **nonlinear**.  
+To model such data more accurately, we can **extend linear models** using polynomial terms, splines, and smoothers while keeping the model interpretable and flexible.
+
+---
+
+## 1. Polynomial Regression
+
+Polynomial regression fits a curve by including higher-order terms of $x$.
+
+The model for degree 2 is:
+
+$$
+y = \beta_0 + \beta_1 x + \beta_2 x^2 + \epsilon
+$$
+
+### Example
+
+```{r}
+library(tidyverse)
+
+set.seed(42)
+x <- runif(100, 0, 10)
+y <- 2 + 0.5 * x - 0.1 * x^2 + rnorm(100, 0, 1)
+data <- tibble(x, y)
+
+# Fit a polynomial regression model
+fit_poly <- lm(y ~ poly(x, 2, raw = TRUE), data = data)
+summary(fit_poly)
+
+# Plot
+ggplot(data, aes(x, y)) +
+  geom_point() +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 2, raw = TRUE), se = FALSE, color = "blue") +
+  labs(title = "Polynomial Regression", y = "y", x = "x")
+```
+
+---
+
+## 2. Step Functions (Digitization / Categorization)
+
+Step functions divide the range of $x$ into intervals and fit a constant value in each.
+
+### Example
+
+```{r}
+# Create cut-points
+data <- data %>%
+  mutate(x_cut = cut(x, breaks = c(0, 3, 6, 10)))
+
+fit_step <- lm(y ~ x_cut, data = data)
+summary(fit_step)
+
+ggplot(data, aes(x, y)) +
+  geom_point() +
+  geom_vline(xintercept = c(3, 6), linetype = "dashed") +
+  labs(title = "Step Function Regression")
+```
+
+---
+
+## 3. Basis Functions
+
+A **basis function** transforms predictors before fitting a linear model.
+Common bases include polynomial, step, spline, or other nonlinear transformations.
+
+General form:
+$$
+y = \beta_0 + \beta_1 b_1(x) + \beta_2 b_2(x) + \dots + \beta_K b_K(x) + \epsilon
+$$
+
+Example with a simple power basis:
+
+```{r}
+basis1 <- x
+basis2 <- x^2
+basis3 <- x^3
+
+fit_basis <- lm(y ~ basis1 + basis2 + basis3)
+summary(fit_basis)
+```
+
+---
+
+## 4. Regression Splines
+
+Splines divide the data into regions separated by **knots**, fitting low-degree polynomials that connect smoothly at each knot.
+
+### Example using `splines` package
+
+```{r}
+library(splines)
+
+fit_spline <- lm(y ~ bs(x, knots = c(3, 6), degree = 3), data = data)
+summary(fit_spline)
+
+ggplot(data, aes(x, y)) +
+  geom_point() +
+  geom_line(aes(y = predict(fit_spline)), color = "red") +
+  labs(title = "Regression Spline")
+```
+
+---
+
+## 5. Smoothing Splines
+
+A **smoothing spline** chooses the smoothest function that balances fit and smoothness, controlled by $\lambda$ (the smoothing parameter).
+
+### Example
+
+```{r}
+fit_smooth <- smooth.spline(x, y, cv = TRUE)
+
+plot(x, y, main = "Smoothing Spline", xlab = "x", ylab = "y")
+lines(fit_smooth, col = "blue", lwd = 2)
+```
+
+---
+
+## 6. Local Regression (LOESS)
+
+**Local regression** fits simple models to localized subsets of the data, allowing flexible fitting.
+
+### Example
+
+```{r}
+fit_loess <- loess(y ~ x, span = 0.5)
+
+ggplot(data, aes(x, y)) +
+  geom_point() +
+  geom_smooth(method = "loess", span = 0.5, se = FALSE, color = "darkgreen") +
+  labs(title = "Local Regression (LOESS)")
+```
+
+---
+
+## 7. Generalized Additive Models (GAM)
+
+**GAMs** extend linear models by fitting smooth functions of each predictor:
+
+$$
+y = \beta_0 + f_1(x_1) + f_2(x_2) + \dots + \epsilon
+$$
+
+### Example
+
+```{r}
+library(mgcv)
+
+# Generate 2D example data
+set.seed(123)
+x1 <- runif(100, 0, 10)
+x2 <- runif(100, 0, 10)
+y <- 2 + sin(x1) + 0.5 * x2 + rnorm(100, 0, 0.5)
+df <- data.frame(x1, x2, y)
+
+fit_gam <- gam(y ~ s(x1) + s(x2), data = df)
+summary(fit_gam)
+plot(fit_gam, pages = 1)
+```
+
+---
+
+## Summary
+
+| Technique             | Flexibility | Interpretability | R Functions       |
+| --------------------- | ----------- | ---------------- | ----------------- |
+| Polynomial Regression | Moderate    | High             | `lm()`, `poly()`  |
+| Step Function         | Low         | High             | `cut()`, `lm()`   |
+| Regression Splines    | High        | Moderate         | `bs()`            |
+| Smoothing Splines     | Very High   | Moderate         | `smooth.spline()` |
+| Local Regression      | Very High   | Moderate         | `loess()`         |
+| GAM                   | Very High   | Moderate         | `gam()`, `s()`    |
+
+---
+
+## References
+
+* James, Witten, Hastie, Tibshirani (2021). *An Introduction to Statistical Learning (2nd Ed.)*. Springer.
+* UCI Machine Learning Repository
+* R Documentation for `splines`, `mgcv`, and `tidymodels`
+
+```
+
+---
+
+Would you like me to include **inline quiz questions or practice exercises** (e.g., “Try fitting a spline with more knots”) at the end of each section for classroom use?
+```

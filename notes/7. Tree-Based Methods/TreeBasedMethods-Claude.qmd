@@ -1,0 +1,722 @@
+---
+title: "Tree-Based Methods in Machine Learning"
+subtitle: "From Decision Trees to Advanced Ensemble Methods"
+author: "Applied Machine Learning Tutorial"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    number_sections: true
+    theme: flatly
+    highlight: tango
+    code_folding: show
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.width = 10, fig.height = 6)
+
+# Load required libraries
+library(tree)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(gbm)
+library(xgboost)
+library(caret)
+library(ISLR2)
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+```
+
+# Introduction to Tree-Based Methods
+
+Tree-based methods involve **stratifying** or **segmenting** the predictor space into a number of simple regions. These methods are simple, useful, and interpretable, but they generally do not achieve the same level of predictive accuracy as other approaches. However, by aggregating many decision trees through ensemble methods, we can dramatically improve prediction performance.
+
+## Why Tree-Based Methods?
+
+**Advantages**:
+- Easy to explain and interpret (often easier than linear models)
+- Can be displayed graphically
+- Handle qualitative predictors naturally without dummy variables
+- Mirror human decision-making processes
+
+**Disadvantages**:
+- Lower predictive accuracy compared to other methods (for single trees)
+- Not robust; small changes in data can cause large changes in tree structure
+- High variance
+
+**Solution**: Ensemble methods (bagging, random forests, boosting) that combine many trees
+
+# Decision Trees
+
+## Regression Trees
+
+### Tree Building Process
+
+A regression tree predicts a quantitative response by stratifying the predictor space into regions and using the mean response in each region for prediction.
+
+**Algorithm**:
+1. Divide predictor space into $J$ distinct non-overlapping regions $R_1, R_2, \ldots, R_J$
+2. For every observation in region $R_j$, predict the mean of training observations in $R_j$:
+   $$\hat{y}_{R_j} = \frac{1}{n_j}\sum_{i \in R_j} y_i$$
+
+### Recursive Binary Splitting
+
+Finding the best binary partition that minimizes RSS is computationally infeasible. Instead, we use a **greedy** approach called **recursive binary splitting**:
+
+1. Select predictor $X_j$ and cutpoint $s$ that minimize:
+   $$\sum_{i: x_i \in R_1(j,s)} (y_i - \hat{y}_{R_1})^2 + \sum_{i: x_i \in R_2(j,s)} (y_i - \hat{y}_{R_2})^2$$
+   where $R_1(j,s) = \{X | X_j < s\}$ and $R_2(j,s) = \{X | X_j \geq s\}$
+
+2. Repeat process within each region until stopping criterion is met
+
+### Tree Pruning
+
+Large trees tend to overfit. We use **cost complexity pruning** (weakest link pruning):
+
+Minimize:
+$$\sum_{m=1}^{|T|} \sum_{i: x_i \in R_m} (y_i - \hat{y}_{R_m})^2 + \alpha |T|$$
+
+where:
+- $|T|$ is the number of terminal nodes (leaves)
+- $\alpha \geq 0$ is the tuning parameter (complexity parameter)
+- Larger $\alpha$ leads to smaller trees
+
+**Algorithm**:
+1. Grow a large tree $T_0$ using recursive binary splitting
+2. For each $\alpha$, find subtree $T \subset T_0$ that minimizes the cost complexity criterion
+3. Use K-fold cross-validation to choose $\alpha$
+4. Return the subtree from step 2 corresponding to chosen $\alpha$
+
+### Example: Regression Tree
+
+```{r regression-tree-example}
+# Using Boston housing data
+library(MASS)
+data(Boston)
+set.seed(1)
+
+# Split data
+train_idx <- sample(1:nrow(Boston), nrow(Boston)*0.7)
+train_data <- Boston[train_idx, ]
+test_data <- Boston[-train_idx, ]
+
+# Fit regression tree
+tree_boston <- tree(medv ~ ., data = train_data)
+
+# Plot tree
+plot(tree_boston)
+text(tree_boston, pretty = 0, cex = 0.8)
+title("Regression Tree for Boston Housing Data")
+
+# Summary
+summary(tree_boston)
+
+# Predictions
+tree_pred <- predict(tree_boston, newdata = test_data)
+tree_mse <- mean((tree_pred - test_data$medv)^2)
+cat("Test MSE:", tree_mse, "\n")
+
+# Cross-validation for pruning
+cv_boston <- cv.tree(tree_boston)
+plot(cv_boston$size, cv_boston$dev, type = "b",
+     xlab = "Tree Size", ylab = "Cross-Validated MSE")
+
+# Prune tree
+prune_boston <- prune.tree(tree_boston, best = 5)
+plot(prune_boston)
+text(prune_boston, pretty = 0)
+title("Pruned Regression Tree")
+
+# Test MSE of pruned tree
+prune_pred <- predict(prune_boston, newdata = test_data)
+prune_mse <- mean((prune_pred - test_data$medv)^2)
+cat("Pruned Tree Test MSE:", prune_mse, "\n")
+```
+
+## Classification Trees
+
+For classification, we predict the **most common class** in each region rather than the mean response.
+
+### Split Criteria
+
+Instead of RSS, we use measures that assess node purity:
+
+**Classification Error Rate**:
+$$E = 1 - \max_k(\hat{p}_{mk})$$
+where $\hat{p}_{mk}$ is the proportion of training observations in region $m$ from class $k$.
+
+**Gini Index**:
+$$G = \sum_{k=1}^K \hat{p}_{mk}(1 - \hat{p}_{mk})$$
+
+**Cross-Entropy (Deviance)**:
+$$D = -\sum_{k=1}^K \hat{p}_{mk} \log(\hat{p}_{mk})$$
+
+Both Gini index and cross-entropy are more sensitive to node purity and are preferred for growing trees. Classification error is often used for pruning.
+
+### Example: Classification Tree
+
+```{r classification-tree-example}
+# Using Carseats data
+data(Carseats, package = "ISLR2")
+
+# Create binary response
+Carseats$High <- factor(ifelse(Carseats$Sales <= 8, "No", "Yes"))
+Carseats <- Carseats[, -1]  # Remove Sales
+
+# Split data
+set.seed(2)
+train_idx <- sample(1:nrow(Carseats), nrow(Carseats)*0.7)
+train_data <- Carseats[train_idx, ]
+test_data <- Carseats[-train_idx, ]
+
+# Fit classification tree
+tree_carseats <- tree(High ~ ., data = train_data)
+
+# Plot tree
+plot(tree_carseats)
+text(tree_carseats, pretty = 0, cex = 0.7)
+title("Classification Tree for Carseats Data")
+
+# Predictions
+tree_pred_class <- predict(tree_carseats, test_data, type = "class")
+confusion_matrix <- table(Predicted = tree_pred_class, Actual = test_data$High)
+print(confusion_matrix)
+accuracy <- mean(tree_pred_class == test_data$High)
+cat("Test Accuracy:", accuracy, "\n")
+
+# Pruning with cross-validation
+set.seed(3)
+cv_carseats <- cv.tree(tree_carseats, FUN = prune.misclass)
+plot(cv_carseats$size, cv_carseats$dev, type = "b",
+     xlab = "Tree Size", ylab = "Cross-Validation Error")
+
+# Prune tree
+prune_carseats <- prune.misclass(tree_carseats, best = 9)
+plot(prune_carseats)
+text(prune_carseats, pretty = 0)
+title("Pruned Classification Tree")
+
+# Pruned tree accuracy
+prune_pred_class <- predict(prune_carseats, test_data, type = "class")
+prune_accuracy <- mean(prune_pred_class == test_data$High)
+cat("Pruned Tree Test Accuracy:", prune_accuracy, "\n")
+```
+
+# Bagging (Bootstrap Aggregation)
+
+## Concept
+
+**Bagging** reduces variance by averaging multiple training sets obtained through bootstrap sampling.
+
+Given a set of $n$ independent observations $Z_1, \ldots, Z_n$, each with variance $\sigma^2$:
+$$\text{Var}\left(\frac{1}{n}\sum_{i=1}^n Z_i\right) = \frac{\sigma^2}{n}$$
+
+**Algorithm**:
+1. Generate $B$ bootstrap samples from training data
+2. Train a tree on each bootstrap sample (without pruning)
+3. Average predictions:
+   - **Regression**: $\hat{f}_{\text{bag}}(x) = \frac{1}{B}\sum_{b=1}^B \hat{f}^{*b}(x)$
+   - **Classification**: Use majority vote or average predicted probabilities
+
+## Out-of-Bag (OOB) Error Estimation
+
+Each bagged tree uses about 2/3 of observations. The remaining 1/3 (out-of-bag) can be used for validation.
+
+**OOB Error**: For each observation $i$, predict using only trees that didn't include observation $i$ in their bootstrap sample.
+
+## Variable Importance
+
+Since bagging improves prediction accuracy at the cost of interpretability, we measure **variable importance**:
+
+**For Regression**: Record total decrease in RSS due to splits over variable $X_j$, averaged over all $B$ trees.
+
+**For Classification**: Record total decrease in Gini index due to splits over variable $X_j$, averaged over all $B$ trees.
+
+### Example: Bagging
+
+```{r bagging-example}
+# Bagging for Boston housing data
+set.seed(1)
+trainIdx <- sample.int(n = nrow(Boston), nrow(Boston)*.7, replace = FALSE)
+train_data <- Boston[trainIdx, ]
+test_data <- Boston[!trainIdx, ]
+bag_boston <- randomForest(medv ~ ., data = train_data,
+                           mtry = 13,  # Use all predictors (bagging)
+                           ntree = 500,
+                           importance = TRUE)
+
+# Predictions
+bag_pred <- predict(bag_boston, newdata = test_data)
+bag_mse <- mean((bag_pred - test_data$medv)^2)
+cat("Bagging Test MSE:", bag_mse, "\n")
+
+# Variable importance plot
+varImpPlot(bag_boston, main = "Variable Importance - Bagging")
+
+# OOB error
+plot(bag_boston, main = "OOB Error vs Number of Trees")
+```
+
+# Random Forests
+
+## Concept
+
+Random forests improve upon bagging by **decorrelating** the trees. When building trees, each time a split is considered, a **random sample of $m$ predictors** is chosen as split candidates from the full set of $p$ predictors.
+
+Typically:
+- **Classification**: $m \approx \sqrt{p}$
+- **Regression**: $m \approx p/3$
+
+**Why it works**: If there's a strong predictor, it will be selected in most bagged trees, causing correlation. By randomly restricting choices, we decorrelate trees, reducing variance further.
+
+## Algorithm
+
+1. For $b = 1$ to $B$:
+   - Draw bootstrap sample from training data
+   - Grow tree on bootstrap sample:
+     - At each split, randomly sample $m$ predictors
+     - Pick best split among the $m$ predictors
+     - Split node into two child nodes
+   - Continue until minimum node size reached (no pruning)
+2. Output ensemble of trees
+
+### Example: Random Forest
+
+```{r random-forest-example}
+# Random forest for Boston housing data
+set.seed(1)
+rf_boston <- randomForest(medv ~ ., data = train_data,
+                          mtry = 6,  # sqrt(13) ≈ 4-6 for regression
+                          ntree = 500,
+                          importance = TRUE)
+
+# Predictions
+rf_pred <- predict(rf_boston, newdata = test_data)
+rf_mse <- mean((rf_pred - test_data$medv)^2)
+cat("Random Forest Test MSE:", rf_mse, "\n")
+
+# Variable importance
+varImpPlot(rf_boston, main = "Variable Importance - Random Forest")
+
+# Partial dependence plot
+partialPlot(rf_boston, train_data, x.var = "rm", 
+            main = "Partial Dependence on rm")
+
+# Comparison of methods
+results_df <- data.frame(
+  Method = c("Single Tree", "Pruned Tree", "Bagging", "Random Forest"),
+  Test_MSE = c(tree_mse, prune_mse, bag_mse, rf_mse)
+)
+print(results_df)
+```
+
+```{r rf-classification}
+# Random forest for classification (Carseats)
+set.seed(1)
+rf_carseats <- randomForest(High ~ ., data = train_data,
+                            mtry = sqrt(ncol(train_data) - 1),
+                            ntree = 500,
+                            importance = TRUE)
+
+# Predictions
+rf_pred_class <- predict(rf_carseats, newdata = test_data)
+rf_accuracy <- mean(rf_pred_class == test_data$High)
+cat("Random Forest Test Accuracy:", rf_accuracy, "\n")
+
+# Variable importance
+varImpPlot(rf_carseats, main = "Variable Importance - Classification RF")
+```
+
+## Tuning Random Forests
+
+Key hyperparameters:
+- **ntree**: Number of trees (500-1000 usually sufficient)
+- **mtry**: Number of variables at each split
+- **nodesize**: Minimum size of terminal nodes
+- **maxnodes**: Maximum number of terminal nodes
+
+```{r rf-tuning}
+# Tuning mtry
+set.seed(1)
+tuneRF(train_data[, -13], train_data[, 13],
+       ntreeTry = 500,
+       stepFactor = 1.5,
+       improve = 0.01,
+       trace = TRUE,
+       plot = TRUE,
+       main = "Tuning mtry for Random Forest")
+```
+
+# Boosting
+
+## Concept
+
+**Boosting** builds trees sequentially, where each tree learns from the mistakes of previous trees. Unlike bagging, boosting does not involve bootstrap sampling; each tree is fit on a modified version of the original dataset.
+
+**Key Idea**: Fit new trees to the **residuals** from the current model rather than the outcome $Y$.
+
+## Algorithm: Gradient Boosting for Regression
+
+1. Set $\hat{f}(x) = 0$ and $r_i = y_i$ for all $i$ in training set
+2. For $b = 1, 2, \ldots, B$:
+   - Fit tree $\hat{f}^b$ with $d$ splits to training data $(X, r)$
+   - Update $\hat{f}$ by adding shrunken version of new tree:
+     $$\hat{f}(x) \leftarrow \hat{f}(x) + \lambda \hat{f}^b(x)$$
+   - Update residuals:
+     $$r_i \leftarrow r_i - \lambda \hat{f}^b(x_i)$$
+3. Output boosted model:
+   $$\hat{f}(x) = \sum_{b=1}^B \lambda \hat{f}^b(x)$$
+
+## Tuning Parameters
+
+- **Number of trees $B$**: Can overfit if too large (use cross-validation)
+- **Shrinkage parameter $\lambda$**: Controls learning rate (typical: 0.01 or 0.001)
+- **Number of splits $d$**: Controls complexity of individual trees (often $d = 1$)
+  - $d = 1$: "stumps" - additive model
+  - $d = 2$: allows 2-way interactions
+  - $d$ controls interaction depth
+
+### Example: Gradient Boosting
+
+```{r boosting-example}
+# Gradient boosting for Boston housing data
+set.seed(1)
+boost_boston <- gbm(medv ~ ., data = train_data,
+                    distribution = "gaussian",
+                    n.trees = 5000,
+                    interaction.depth = 4,
+                    shrinkage = 0.01,
+                    cv.folds = 5,
+                    verbose = FALSE)
+
+# Optimal number of trees
+best_iter <- gbm.perf(boost_boston, method = "cv")
+cat("Optimal number of trees:", best_iter, "\n")
+
+# Predictions
+boost_pred <- predict(boost_boston, newdata = test_data, 
+                      n.trees = best_iter)
+boost_mse <- mean((boost_pred - test_data$medv)^2)
+cat("Boosting Test MSE:", boost_mse, "\n")
+
+# Variable importance
+summary(boost_boston, las = 2, main = "Variable Importance - Boosting")
+
+# Partial dependence plots
+par(mfrow = c(1, 2))
+plot(boost_boston, i = "rm", main = "Partial Dependence on rm")
+plot(boost_boston, i = "lstat", main = "Partial Dependence on lstat")
+par(mfrow = c(1, 1))
+```
+
+```{r boosting-tuning}
+# Compare different shrinkage values
+set.seed(1)
+shrinkage_values <- c(0.001, 0.01, 0.1)
+mse_shrinkage <- numeric(length(shrinkage_values))
+
+for (i in seq_along(shrinkage_values)) {
+  boost_temp <- gbm(medv ~ ., data = train_data,
+                    distribution = "gaussian",
+                    n.trees = 5000,
+                    interaction.depth = 4,
+                    shrinkage = shrinkage_values[i],
+                    verbose = FALSE)
+  pred_temp <- predict(boost_temp, newdata = test_data, n.trees = 5000)
+  mse_shrinkage[i] <- mean((pred_temp - test_data$medv)^2)
+}
+
+results_shrinkage <- data.frame(
+  Shrinkage = shrinkage_values,
+  Test_MSE = mse_shrinkage
+)
+print(results_shrinkage)
+```
+
+# XGBoost: Extreme Gradient Boosting
+
+XGBoost is an optimized gradient boosting library that is highly efficient and effective.
+
+## Key Features
+
+- **Regularization**: Includes L1 and L2 regularization to prevent overfitting
+- **Handling missing values**: Built-in handling of missing data
+- **Parallel processing**: Faster training through parallelization
+- **Tree pruning**: Uses max_depth and prunes trees backward
+- **Built-in cross-validation**: Easy hyperparameter tuning
+
+## Algorithm Enhancements
+
+The objective function includes regularization:
+$$\text{Obj} = \sum_{i=1}^n L(y_i, \hat{y}_i) + \sum_{k=1}^K \Omega(f_k)$$
+
+where:
+$$\Omega(f) = \gamma T + \frac{1}{2}\lambda \sum_{j=1}^T w_j^2$$
+
+- $T$ is number of leaves
+- $w_j$ is the score on leaf $j$
+- $\gamma$ controls minimum loss reduction for split
+- $\lambda$ is L2 regularization term
+
+### Example: XGBoost
+
+```{r xgboost-example}
+# Prepare data for XGBoost
+train_matrix <- xgb.DMatrix(data = as.matrix(train_data[, -13]), 
+                            label = train_data$medv)
+test_matrix <- xgb.DMatrix(data = as.matrix(test_data[, -13]), 
+                           label = test_data$medv)
+
+# Train XGBoost model
+set.seed(1)
+xgb_boston <- xgb.train(
+  data = train_matrix,
+  nrounds = 1000,
+  objective = "reg:squarederror",
+  early_stopping_rounds = 50,
+  max_depth = 6,
+  eta = 0.01,  # Learning rate
+  watchlist = list(train = train_matrix, test = test_matrix),
+  verbose = 0
+)
+
+# Predictions
+xgb_pred <- predict(xgb_boston, test_matrix)
+xgb_mse <- mean((xgb_pred - test_data$medv)^2)
+cat("XGBoost Test MSE:", xgb_mse, "\n")
+
+# Variable importance
+importance_matrix <- xgb.importance(
+  feature_names = colnames(train_data[, -13]),
+  model = xgb_boston
+)
+xgb.plot.importance(importance_matrix, top_n = 10,
+                    main = "Variable Importance - XGBoost")
+
+# Plot learning curves
+xgb.plot.multi.trees(model = xgb_boston, feature_names = colnames(train_data[, -13]))
+```
+
+```{r xgboost-cv}
+# Cross-validation for XGBoost
+cv_xgb <- xgb.cv(
+  data = train_matrix,
+  nrounds = 1000,
+  nfold = 5,
+  objective = "reg:squarederror",
+  early_stopping_rounds = 50,
+  max_depth = 6,
+  eta = 0.01,
+  verbose = 0
+)
+
+# Best iteration
+cat("Best iteration:", cv_xgb$best_iteration, "\n")
+
+# Plot CV error
+ggplot(cv_xgb$evaluation_log) +
+  geom_line(aes(x = iter, y = train_rmse_mean), color = "blue") +
+  geom_line(aes(x = iter, y = test_rmse_mean), color = "red") +
+  labs(title = "XGBoost Cross-Validation Error",
+       x = "Iteration", y = "RMSE") +
+  theme_minimal()
+```
+
+# Advanced Topics
+
+## LightGBM
+
+LightGBM is another gradient boosting framework that uses leaf-wise tree growth instead of level-wise.
+
+**Key advantages**:
+- Faster training speed
+- Lower memory usage
+- Better accuracy
+- Support for parallel and GPU learning
+
+## CatBoost
+
+CatBoost is designed to handle categorical features naturally.
+
+**Key features**:
+- Ordered boosting to prevent overfitting
+- Built-in handling of categorical features
+- Fast GPU training
+- Robust to hyperparameters
+
+## Interpretability: SHAP Values
+
+**SHAP (SHapley Additive exPlanations)** provides unified measure of feature importance and feature effects.
+
+```{r shap-example, eval=FALSE}
+# Note: Requires additional package installation
+# install.packages("SHAPforxgboost")
+library(SHAPforxgboost)
+
+# Calculate SHAP values
+shap_values <- shap.values(xgb_model = xgb_boston, X_train = train_matrix)
+
+# Summary plot
+shap.plot.summary.wrap1(xgb_boston, X = as.matrix(train_data[, -13]))
+
+# Dependence plots
+shap.plot.dependence(
+  data_long = shap_long,
+  x = "rm",
+  y = "rm",
+  color_feature = "lstat"
+)
+```
+
+# Practical Considerations
+
+## Model Selection Framework
+
+```{r model-comparison-framework}
+# Comprehensive comparison
+set.seed(123)
+
+# Create comparison data frame
+final_results <- data.frame(
+  Method = c("Single Tree", "Pruned Tree", "Bagging", 
+             "Random Forest", "Gradient Boosting", "XGBoost"),
+  Test_MSE = c(tree_mse, prune_mse, bag_mse, 
+               rf_mse, boost_mse, xgb_mse),
+  Test_RMSE = sqrt(c(tree_mse, prune_mse, bag_mse, 
+                     rf_mse, boost_mse, xgb_mse))
+)
+
+print(final_results)
+
+# Visualization
+ggplot(final_results, aes(x = reorder(Method, -Test_RMSE), y = Test_RMSE)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = round(Test_RMSE, 2)), vjust = -0.5) +
+  labs(title = "Comparison of Tree-Based Methods",
+       x = "Method", y = "Test RMSE") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Guidelines for Practice
+
+**When to use what**:
+
+1. **Single Decision Tree**: Interpretability is crucial, simple baseline
+2. **Random Forest**: Good default choice, robust, handles interactions well
+3. **Gradient Boosting/XGBoost**: Best performance, when you can tune carefully
+4. **Bagging**: Middle ground between single tree and random forest
+
+**Hyperparameter Tuning Strategy**:
+1. Start with default parameters
+2. Tune number of trees (use early stopping)
+3. Tune tree depth/complexity
+4. Tune learning rate (for boosting)
+5. Fine-tune other parameters
+
+**Computational Considerations**:
+- Random Forest: Easily parallelizable
+- Boosting: Sequential, slower but often more accurate
+- XGBoost: Optimized implementation, best speed/performance tradeoff
+
+## Cross-Validation Strategy
+
+```{r cv-strategy}
+# Using caret for systematic comparison
+set.seed(1)
+
+# Define training control
+train_control <- trainControl(
+  method = "cv",
+  number = 5,
+  verboseIter = FALSE
+)
+
+# Random Forest with caret
+rf_caret <- train(
+  medv ~ .,
+  data = train_data,
+  method = "rf",
+  trControl = train_control,
+  tuneGrid = expand.grid(mtry = c(2, 4, 6, 8))
+)
+
+# Gradient Boosting with caret
+gbm_caret <- train(
+  medv ~ .,
+  data = train_data,
+  method = "gbm",
+  trControl = train_control,
+  tuneGrid = expand.grid(
+    n.trees = c(100, 500, 1000),
+    interaction.depth = c(1, 3, 5),
+    shrinkage = c(0.01, 0.1),
+    n.minobsinnode = 10
+  ),
+  verbose = FALSE
+)
+
+# Compare results
+results_list <- list(RF = rf_caret, GBM = gbm_caret)
+resamps <- resamples(results_list)
+summary(resamps)
+bwplot(resamps, main = "Model Comparison via Cross-Validation")
+```
+
+# Summary and Best Practices
+
+## Key Takeaways
+
+1. **Single trees** are interpretable but have high variance and low accuracy
+2. **Bagging** reduces variance by averaging many trees
+3. **Random Forests** improve upon bagging by decorrelating trees
+4. **Boosting** builds trees sequentially, learning from previous mistakes
+5. **XGBoost** adds regularization and optimization for better performance
+
+## Decision Framework
+
+```{r decision-framework, echo=FALSE}
+framework_df <- data.frame(
+  Priority = c("Interpretability", "Prediction Accuracy", 
+               "Training Speed", "Handling Missing Data", 
+               "Categorical Variables", "Hyperparameter Sensitivity"),
+  "Single Tree" = c("★★★★★", "★★", "★★★★★", "★★★", "★★★★", "★★★★"),
+  "Random Forest" = c("★★", "★★★★", "★★★", "★★★★★", "★★★★★", "★★★★★"),
+  "GBM" = c("★★", "★★★★★", "★★", "★★★", "★★★", "★★"),
+  "XGBoost" = c("★★", "★★★★★", "★★★★", "★★★★★", "★★★", "★★★")
+)
+
+kable(framework_df, escape = FALSE) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+## Recommended Workflow
+
+1. **Start simple**: Fit single tree for baseline and interpretation
+2. **Try Random Forest**: Good default choice with minimal tuning
+3. **Optimize if needed**: Use XGBoost/GBM with careful tuning for best performance
+4. **Validate properly**: Use cross-validation, avoid overfitting
+5. **Interpret results**: Use variable importance, partial dependence, SHAP values
+6. **Consider ensemble**: Combine multiple models if improvement is marginal
+
+---
+
+# References and Further Reading
+
+- **ISLR2**: James, G., Witten, D., Hastie, T., & Tibshirani, R. (2021). *An Introduction to Statistical Learning with Applications in R* (2nd ed.)
+- **ESL**: Hastie, T., Tibshirani, R., & Friedman, J. (2009). *The Elements of Statistical Learning* (2nd ed.)
+- **XGBoost Documentation**: https://xgboost.readthedocs.io/
+- **Random Forest Original Paper**: Breiman, L. (2001). Random forests. *Machine Learning*, 45(1), 5-32.
+- **Gradient Boosting**: Friedman, J. H. (2001). Greedy function approximation: A gradient boosting machine. *Annals of Statistics*, 1189-1232.
+
+---
+
+*This tutorial provides a comprehensive foundation in tree-based methods with practical R implementations for applied machine learning.*

@@ -1,0 +1,101 @@
+---
+title: "VSCodium Setup"
+author: "Mansour Abdoli"
+format: html
+editor: visual
+---
+
+Perfect — here's a robust, student-friendly setup for running `.ipynb` notebooks in VSCodium with reproducible Python environments. This template is ideal for teaching modules or reports that use ACS datasets or similar sources.
+
+---
+
+## 🧰 Project Structure
+
+```
+acs-notebook-project/
+├── environment/
+│   ├── requirements.txt
+│   └── setup_env.bat  (for Windows)
+├── notebooks/
+│   └── analysis.ipynb
+├── data/
+│   └── acs_data.csv
+└── README.md
+```
+
+---
+
+## 📦 `requirements.txt`
+
+```txt
+numpy
+pandas
+matplotlib
+seaborn
+jupyter
+ipykernel
+```
+
+Add any other packages you need (e.g., `statsmodels`, `scikit-learn`, `geopandas`, etc.).
+
+---
+
+## ⚙️ `setup_env.bat` (Windows)
+
+```bat
+@echo off
+REM Create virtual environment
+python -m venv .venv
+
+REM Activate environment
+call .venv\Scripts\activate
+
+REM Upgrade pip and install requirements
+python -m pip install --upgrade pip
+pip install -r environment\requirements.txt
+
+REM Register kernel for Jupyter
+python -m ipykernel install --user --name acs-env --display-name "Python (acs-env)"
+
+echo Environment setup complete. Launch VSCodium and select 'Python (acs-env)' kernel.
+pause
+```
+
+---
+
+## 🧪 Notebook Tips (`analysis.ipynb`)
+
+- Start with a cell that confirms environment setup:
+
+```python
+import sys
+import numpy as np
+import pandas as pd
+
+print("Python version:", sys.version)
+print("Numpy version:", np.__version__)
+```
+
+- Use relative paths for data: `../data/acs_data.csv`
+
+---
+
+## 📘 `README.md` (optional)
+
+Include setup instructions for students:
+
+```md
+# ACS Notebook Project
+
+## Setup Instructions
+
+1. Install Python 3.10+
+2. Clone this repo
+3. Run `setup_env.bat` from the `environment` folder
+4. Open `notebooks/analysis.ipynb` in VSCodium
+5. Select kernel: `Python (acs-env)`
+```
+
+---
+
+Would you like a Linux/macOS version of the setup script too? Or a Quarto-compatible variant for R + Python integration?

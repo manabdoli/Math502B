@@ -1,0 +1,60 @@
+---
+title: "Non-Linear Regression Models"
+author: "Applied Machine Learning Tutorial"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
+    number_sections: true
+    theme: flatly
+    highlight: tango
+    code_folding: show
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+---
+
+## Introduction
+
+In multiple linear regression, we assume a *linear relationship* between predictors and response variables. However, in practice, relationships may be **nonlinear**.  
+To model such data more accurately, we can **extend linear models** using polynomial terms, splines, and smoothers while keeping the model interpretable and flexible.
+
+---
+
+## 1. Polynomial Regression
+
+Polynomial regression fits a curve by including higher-order terms of $x$.
+
+The model for degree 2 is:
+
+$$
+y = \beta_0 + \beta_1 x + \beta_2 x^2 + \epsilon
+$$
+
+### Example
+
+```{r}
+library(tidyverse)
+
+set.seed(42)
+x <- runif(100, 0, 10)
+y <- 2 + 0.5 * x - 0.1 * x^2 + rnorm(100, 0, 1)
+data <- tibble(x, y)
+
+# Fit a polynomial regression model
+fit_poly <- lm(y ~ poly(x, 2, raw = TRUE), data = data)
+summary(fit_poly)
+
+# Plot
+ggplot(data, aes(x, y)) +
+  geom_point() +
+  stat_smooth(method = "lm", formula = y ~ poly(x, 2, raw = TRUE), se = FALSE, color = "blue") +
+  labs(title = "Polynomial Regression", y = "y", x = "x")
+```
+
+
+---
+

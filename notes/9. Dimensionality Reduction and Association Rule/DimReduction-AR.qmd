@@ -1,0 +1,653 @@
+---
+title: "Dimensionality Reduction & Association Rule Mining"
+author: "Statistical Learning - ISLR Chapters 6.3-6.4 & 12"
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    code-fold: false
+    theme: cosmo
+execute:
+  warning: false
+  message: false
+---
+
+# Part I: Dimensionality Reduction (ISLR 6.3-6.4)
+
+## Overview
+
+Dimensionality reduction transforms high-dimensional data ($p$ predictors) into a lower-dimensional representation ($M < p$ features) while preserving important information. This addresses the **curse of dimensionality** and can improve model performance.
+
+## 6.3 Principal Components Regression (PCR)
+
+### Mathematical Foundation
+
+**Principal Components Analysis (PCA)** finds linear combinations of predictors that capture maximum variance:
+
+**First Principal Component:**
+$$Z_1 = \phi_{11}X_1 + \phi_{21}X_2 + \cdots + \phi_{p1}X_p$$
+
+where $\phi_1 = (\phi_{11}, \phi_{21}, \ldots, \phi_{p1})^T$ is the loading vector that maximizes $\text{Var}(Z_1)$ subject to $\sum_{j=1}^p \phi_{j1}^2 = 1$.
+
+**Optimization Problem:**
+
+$$\max_{\phi_{11}, \ldots, \phi_{p1}} \left\{ \frac{1}{n} \sum_{i=1}^n \left( \sum_{j=1}^p \phi_{j1} x_{ij} \right)^2 \right\} \text{ subject to } \sum_{j=1}^p \phi_{j1}^2 = 1$$
+
+**Subsequent Components:**
+
+- $Z_2, Z_3, \ldots, Z_p$ are orthogonal to all previous components
+- Each maximizes variance among all linear combinations orthogonal to previous PCs
+- Together, they form an orthogonal basis
+
+**Key Properties:**
+
+- PCs are ordered by variance explained: $\text{Var}(Z_1) \geq \text{Var}(Z_2) \geq \cdots \geq \text{Var}(Z_p)$
+- Total variance: $\sum_{j=1}^p \text{Var}(Z_j) = \sum_{j=1}^p \text{Var}(X_j)$
+- PCs are uncorrelated: $\text{Cor}(Z_i, Z_j) = 0$ for $i \neq j$
+
+### Principal Components Regression
+
+PCR performs regression on the first $M$ principal components:
+
+$$y_i = \theta_0 + \theta_1 z_{i1} + \theta_2 z_{i2} + \cdots + \theta_M z_{iM} + \epsilon_i$$
+
+where $M < p$ is chosen via cross-validation.
+
+**Intuition:** If the response is related to the directions of high variance in $X$, PCR can outperform least squares.
+
+### Assumptions
+
+1. **Linearity:** Response is linear in the PCs (transformed predictors)
+2. **Variance equals importance:** Directions of high variance are assumed to be associated with the response
+3. **Standardization matters:** Variables should be standardized if on different scales
+4. **Orthogonality:** PCs are uncorrelated by construction
+
+### Applications
+
+- **High-dimensional regression:** $p$ close to or exceeds $n$
+- **Multicollinearity:** When predictors are highly correlated
+- **Data visualization:** Project to 2D or 3D for plotting
+- **Feature engineering:** Create uncorrelated features
+- **Genomics:** Gene expression data ($p >> n$)
+- **Image compression:** Reduce dimensionality of image data
+
+### Things to Watch For
+
+⚠️ **Direction of maximum variance ≠ direction of maximum association with $Y$**
+
+   - PCR may discard useful information in low-variance directions
+   - Supervised methods (PLS) may perform better
+
+⚠️ **Standardization required**
+
+   - If predictors have different scales, PCA is dominated by high-variance variables
+   - Always standardize unless variables are naturally comparable
+
+⚠️ **Number of components $M$**
+
+   - Use cross-validation to select $M$
+   - Too few: underfitting; too many: overfitting
+   - No dimension reduction if $M = p$
+
+⚠️ **Interpretability**
+
+   - PCs are linear combinations of all original predictors
+   - Difficult to interpret loadings
+   - Not sparse (all predictors have non-zero weights)
+
+⚠️ **Unsupervised method**
+
+   - PCA doesn't use response variable $Y$
+   - May not find components relevant to prediction
+
+### R Implementation
+
+```{r}
+library(tidyverse)
+library(pls)
+library(ISLR2)
+
+# Load data
+data(Hitters)
+Hitters <- na.omit(Hitters)
+
+# Prepare data
+x <- model.matrix(Salary ~ ., Hitters)[, -1]
+y <- Hitters$Salary
+
+# Standardize predictors
+x_scaled <- scale(x)
+
+# Perform PCA
+pca_result <- prcomp(x_scaled, scale = FALSE) # Already scaled
+
+# Variance explained
+variance_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+
+# Scree plot
+data.frame(
+  PC = 1:length(variance_explained),
+  Variance = variance_explained,
+  Cumulative = cumsum(variance_explained)
+) %>%
+  ggplot(aes(x = PC, y = Variance)) +
+  geom_line() +
+  geom_point() +
+  geom_line(aes(y = Cumulative), linetype = "dashed", color = "blue") +
+  labs(title = "Scree Plot", 
+       y = "Proportion of Variance Explained",
+       subtitle = "Solid: Individual | Dashed: Cumulative") +
+  theme_minimal()
+
+# Biplot - first two PCs
+biplot(pca_result, scale = 0, cex = 0.6)
+
+# PCR with cross-validation
+set.seed(123)
+pcr_fit <- pcr(Salary ~ ., data = Hitters, scale = TRUE, validation = "CV")
+
+# CV error plot
+validationplot(pcr_fit, val.type = "MSEP")
+
+# Optimal number of components
+cv_errors <- RMSEP(pcr_fit)$val[1, , ]
+optimal_M <- which.min(cv_errors) - 1
+cat("Optimal number of components:", optimal_M, "\n")
+
+# Summary of PCR
+summary(pcr_fit)
+```
+
+## 6.4 Partial Least Squares (PLS)
+
+### Mathematical Foundation
+
+PLS is a **supervised** dimensionality reduction method. It finds directions that maximize correlation with the response:
+
+**First PLS Direction:**
+$$Z_1 = \sum_{j=1}^p \phi_{j1} X_j$$
+
+where $\phi_1$ is chosen to maximize $\text{Cor}^2(Y, Z_1)$ subject to $\sum_{j=1}^p \phi_{j1}^2 = 1$.
+
+**Algorithm:**
+
+1. Standardize predictors
+2. Set $\hat{Y}^{(0)} = \bar{y}$
+3. For $m = 1, 2, \ldots, M$:
+   - Compute $\phi_{jm} = \langle X_j, Y \rangle$ (univariate regression coefficient)
+   - Normalize: $\phi_m = \phi_m / \|\phi_m\|$
+   - Compute $Z_m = \sum_{j=1}^p \phi_{jm} X_j$
+   - Regress $Y$ on $Z_m$: $\hat{Y}^{(m)} = \hat{Y}^{(m-1)} + \hat{\theta}_m Z_m$
+   - Orthogonalize each $X_j$ with respect to $Z_m$
+
+**Key Difference from PCR:**
+
+- PLS uses response $Y$ to guide direction selection
+- First PLS component puts highest weight on variables most correlated with $Y$
+- Subsequent components balance variance and correlation with $Y$
+
+### Assumptions
+
+1. **Linearity:** Response is linear in PLS components
+2. **Correlation matters:** Assumes response is related to high-correlation directions
+3. **Standardization:** Variables should be standardized
+4. **Sequential construction:** Each component uses residualized predictors
+
+### Applications
+
+Same as PCR, but particularly useful when:
+
+- Response-predictor relationship exists in low-variance directions
+- Prediction is more important than interpretation
+- **Chemometrics:** Spectroscopy data (original application)
+- **Quantitative structure-activity relationships (QSAR)**
+
+### PCR vs PLS Comparison
+
+| Aspect | PCR | PLS |
+|--------|-----|-----|
+| Supervision | Unsupervised | Supervised |
+| Objective | Maximize variance | Maximize correlation with $Y$ |
+| When better | Response relates to high-variance directions | Response relates to high-correlation directions |
+| Interpretation | Slightly easier (variance-based) | Slightly harder |
+| Computational | Faster | Slightly slower |
+
+### Things to Watch For
+
+⚠️ **Similar issues to PCR:**
+
+   - Still requires cross-validation for $M$
+   - Still not sparse (uses all predictors)
+   - Still requires standardization
+
+⚠️ **Not always better than PCR**
+
+   - If $Y$ is related to high-variance directions, PCR may be sufficient
+   - PLS can overfit if $M$ too large
+
+⚠️ **Interpretation**
+
+   - Even harder to interpret than PCR
+   - Components are response-dependent
+
+⚠️ **Overfitting risk**
+
+   - By focusing on correlation with $Y$, PLS can overfit more easily
+   - Critical to use proper cross-validation
+
+### R Implementation
+
+```{r}
+# PLS with cross-validation
+set.seed(123)
+pls_fit <- plsr(Salary ~ ., data = Hitters, scale = TRUE, validation = "CV")
+
+# CV error plot
+validationplot(pls_fit, val.type = "MSEP")
+
+# Optimal number of components
+pls_cv_errors <- RMSEP(pls_fit)$val[1, , ]
+optimal_M_pls <- which.min(pls_cv_errors) - 1
+cat("Optimal number of components (PLS):", optimal_M_pls, "\n")
+
+# Compare PCR vs PLS
+comparison_df <- data.frame(
+  Components = 0:(length(cv_errors) - 1),
+  PCR = cv_errors,
+  PLS = pls_cv_errors
+) %>%
+  pivot_longer(cols = c(PCR, PLS), names_to = "Method", values_to = "RMSEP")
+
+ggplot(comparison_df, aes(x = Components, y = RMSEP, color = Method)) +
+  geom_line(linewidth = 1) +
+  geom_point() +
+  labs(title = "PCR vs PLS Cross-Validation Error",
+       y = "Root Mean Squared Error of Prediction") +
+  theme_minimal()
+
+# Summary
+summary(pls_fit)
+```
+
+---
+
+# Part II: Association Rule Mining (ISLR Chapter 12)
+
+## Overview
+
+Association rule mining discovers interesting relationships (associations) between variables in large databases. Originally developed for **market basket analysis**.
+
+**Goal:** Find rules of the form $\{A\} \Rightarrow \{B\}$ meaning "if A, then B"
+
+## Mathematical Foundation
+
+### Basic Concepts
+
+**Itemset:** A collection of items, e.g., $\{milk, bread\}$
+
+**Transaction:** A set of items purchased together
+
+**Support:** Frequency of an itemset in the dataset
+
+$$\text{support}(A) = \frac{\text{\# transactions containing} A}{\text{total \# transactions}}$$
+
+
+**Confidence:** Conditional probability
+$$\text{confidence}(A \Rightarrow B) = \frac{\text{support}(A \cup B)}{\text{support}(A)} = P(B|A)$$
+
+**Lift:** Measure of dependence
+$$\text{lift}(A \Rightarrow B) = \frac{\text{support}(A \cup B)}{\text{support}(A) \times \text{support}(B)} = \frac{P(A \cap B)}{P(A)P(B)}$$
+
+### Interpreting Metrics
+
+**Support:**
+
+- High support: Frequent pattern
+- Low support: Rare pattern
+- Minimum threshold filters noise
+
+**Confidence:**
+
+- Range: [0, 1]
+- Confidence = 1: Perfect implication ($A$ always leads to $B$)
+- Confidence = support$(B)$: Independence (rule is useless)
+
+**Lift:**
+
+- Lift > 1: Positive association ($A$ and $B$ occur together more than expected)
+- Lift = 1: Independence (no association)
+- Lift < 1: Negative association ($A$ and $B$ occur together less than expected)
+
+### Example
+
+Database with 10,000 transactions:
+
+- $\{milk\}$: 4,000 transactions → support = 0.40
+- $\{bread\}$: 3,000 transactions → support = 0.30
+- $\{milk, bread\}$: 2,000 transactions → support = 0.20
+
+**Rule:** $\{milk\} \Rightarrow \{bread\}$
+
+- Support = 0.20 (20% of all transactions)
+- Confidence = 2000/4000 = 0.50 (50% of milk buyers also buy bread)
+- Lift = 0.20 / (0.40 × 0.30) = 1.67 (milk and bread bought together 67% more than expected)
+
+## The Apriori Algorithm
+
+### Core Principle
+
+**Apriori Property:** If an itemset is frequent, all its subsets must also be frequent.
+
+**Contrapositive:** If an itemset is infrequent, all its supersets must be infrequent.
+
+### Algorithm Steps
+
+1. **Find frequent 1-itemsets** ($L_1$): Count support for all items
+2. **Generate candidate 2-itemsets** ($C_2$): Combine frequent 1-itemsets
+3. **Prune** $C_2$: Remove itemsets with infrequent subsets
+4. **Count support** for remaining candidates in $C_2$
+5. **Find frequent 2-itemsets** ($L_2$): Keep those above minimum support
+6. **Repeat** for $k$-itemsets until no frequent itemsets found
+7. **Generate rules** from frequent itemsets
+
+### Pseudocode
+
+```
+Apriori(T, min_support):
+  L_1 = {frequent 1-itemsets}
+  k = 2
+  
+  while L_{k-1} is not empty:
+    C_k = generate_candidates(L_{k-1})  # Join step
+    C_k = prune(C_k, L_{k-1})           # Prune step
+    
+    for transaction t in T:
+      for candidate c in C_k:
+        if c ⊆ t:
+          c.count++
+    
+    L_k = {c in C_k : c.support >= min_support}
+    k = k + 1
+  
+  return ∪_k L_k
+```
+
+## Applications
+
+### Market Basket Analysis
+
+- **Retail:** Product placement, cross-selling
+- **E-commerce:** Recommendation systems
+- **Example:** "Customers who bought diapers also bought beer"
+
+### Healthcare
+
+- **Disease patterns:** Co-occurring symptoms or conditions
+- **Treatment effectiveness:** Drug combinations
+- **Example:** "Patients with diabetes often have hypertension"
+
+### Web Usage Mining
+
+- **Click-stream analysis:** User navigation patterns
+- **Content recommendations:** Pages visited together
+- **Example:** "Users who view page A often proceed to page B"
+
+### Other Applications
+
+- **Bioinformatics:** Gene expression patterns
+- **Fraud detection:** Suspicious transaction patterns
+- **Text mining:** Word associations in documents
+- **Network intrusion detection:** Attack patterns
+
+## Assumptions
+
+1. **Binary data:** Items are present/absent (can extend to categorical)
+2. **Independence of transactions:** Each transaction is independent
+3. **Equal importance:** All items weighted equally (unless specified)
+4. **Completeness:** Database represents the population pattern
+5. **Stationarity:** Patterns don't change over time (within analysis period)
+
+## Things to Watch For
+
+### ⚠️ Computational Complexity
+
+**Problem:** Number of possible itemsets grows exponentially
+
+- $p$ items → $2^p - 1$ possible itemsets
+- 20 items → ~1 million itemsets
+- 100 items → ~$10^{30}$ itemsets
+
+**Solution:**
+
+- Set appropriate minimum support threshold
+- Apriori pruning drastically reduces search space
+- Use sampling for very large datasets
+
+### ⚠️ Parameter Selection
+
+**Minimum Support:**
+
+- Too high: Miss rare but important patterns
+- Too low: Too many rules, high computational cost
+- **Guideline:** Start with 5-10%, adjust based on results
+
+**Minimum Confidence:**
+
+- Too high: Miss interesting but moderate associations
+- Too low: Many spurious rules
+- **Guideline:** 60-80% typical
+
+**Minimum Lift:**
+
+- Should be > 1 for interesting rules
+- **Guideline:** 1.5+ indicates strong association
+
+### ⚠️ Spurious Associations
+
+**Multiple Testing Problem:**
+
+- Testing thousands of rules increases false positives
+- **Solution:** Use higher thresholds, statistical tests, or Bonferroni correction
+
+**Simpson's Paradox:**
+
+- Association may reverse when controlling for confounders
+- **Solution:** Stratified analysis, domain knowledge
+
+### ⚠️ Interpretation Challenges
+
+**Correlation ≠ Causation:**
+
+- High lift doesn't imply causal relationship
+- Example: Ice cream sales and drowning both correlate with temperature
+
+**Directionality:**
+
+- $A \Rightarrow B$ doesn't imply $B \Rightarrow A$
+- Confidence is asymmetric
+
+**Temporal ordering:**
+
+- Rules don't capture time sequence
+- May need sequential pattern mining
+
+### ⚠️ Data Quality Issues
+
+**Missing values:**
+
+- Affects support calculation
+- May need imputation or special handling
+
+**Rare items:**
+
+- Long-tail distribution common
+- May need separate analysis for rare items
+
+**Data sparsity:**
+
+- High-dimensional data often sparse
+- Affects reliability of estimates
+
+### ⚠️ Actionability
+
+**Trivial rules:**
+
+- $\{bread, butter\} \Rightarrow \{milk\}$ might be obvious
+- **Filter:** Use domain knowledge, remove redundant rules
+
+**Interestingness:**
+
+- Statistical significance ≠ business value
+- **Consider:** Profit, inventory, customer value
+
+## R Implementation
+
+```{r}
+library(arules)
+library(arulesViz)
+
+# Load example data
+data("Groceries")
+
+# Inspect data
+summary(Groceries)
+inspect(head(Groceries, 3))
+
+# Visualize item frequency
+itemFrequencyPlot(Groceries, topN = 20, type = "absolute",
+                  main = "Top 20 Most Frequent Items")
+
+# Apply Apriori algorithm
+rules <- apriori(Groceries, 
+                 parameter = list(support = 0.001,    # Min 0.1% of transactions
+                                  confidence = 0.6,   # Min 60% confidence
+                                  minlen = 2))        # At least 2 items
+
+# Summary of rules
+summary(rules)
+
+# Inspect top rules by lift
+top_rules <- sort(rules, by = "lift", decreasing = TRUE)
+inspect(head(top_rules, 10))
+
+# Visualize rules
+plot(rules, method = "scatterplot", measure = c("support", "confidence"),
+     shading = "lift", main = "Association Rules")
+
+# Network graph for top rules
+top_20 <- head(sort(rules, by = "lift"), 20)
+plot(top_20, method = "graph", main = "Top 20 Rules by Lift")
+
+# Grouped matrix
+plot(rules, method = "grouped", main = "Grouped Rules Matrix")
+
+# Find rules with specific items
+milk_rules <- subset(rules, items %in% "whole milk")
+inspect(head(sort(milk_rules, by = "lift"), 5))
+
+# Find rules: antecedent contains yogurt, consequent contains milk
+specific_rules <- subset(rules, 
+                         lhs %in% "yogurt" & rhs %in% "whole milk")
+inspect(specific_rules)
+
+# Rule redundancy
+redundant <- is.redundant(rules)
+rules_pruned <- rules[!redundant]
+cat("Original rules:", length(rules), "\n")
+cat("Non-redundant rules:", length(rules_pruned), "\n")
+```
+
+## Advanced Metrics
+
+### Conviction
+
+Measures implication strength:
+$$\text{conviction}(A \Rightarrow B) = \frac{1 - \text{support}(B)}{1 - \text{confidence}(A \Rightarrow B)}$$
+
+- Conviction = 1: Independence
+- Conviction = ∞: Perfect implication
+- Higher values indicate stronger rules
+
+### Cosine Similarity
+
+$$\text{cosine}(A, B) = \frac{\text{support}(A \cup B)}{\sqrt{\text{support}(A) \times \text{support}(B)}}$$
+
+### Kulczynski Measure
+
+$$\text{Kulc}(A, B) = \frac{1}{2}\left[\frac{\text{support}(A \cup B)}{\text{support}(A)} + \frac{\text{support}(A \cup B)}{\text{support}(B)}\right]$$
+
+```{r}
+# Calculate additional metrics
+quality(rules) <- cbind(quality(rules), 
+                        conviction = interestMeasure(rules, "conviction", 
+                                                     transactions = Groceries),
+                        cosine = interestMeasure(rules, "cosine", 
+                                                transactions = Groceries))
+
+# Inspect rules with new metrics
+inspect(head(sort(rules, by = "conviction"), 5))
+```
+
+## Best Practices
+
+### 1. Exploratory Analysis
+
+- Examine item frequency distribution
+- Identify rare vs common items
+- Check for data quality issues
+
+### 2. Iterative Tuning
+
+- Start with higher thresholds
+- Gradually lower to find sweet spot
+- Balance number of rules vs interestingness
+
+### 3. Domain Knowledge
+
+- Filter rules using business logic
+- Focus on actionable insights
+- Consult domain experts
+
+### 4. Validation
+
+- Use holdout set for validation
+- Test rules on new data
+- Monitor rule stability over time
+
+### 5. Post-Processing
+
+- Remove redundant rules
+- Rank by multiple metrics
+- Visualize for insights
+
+## Summary Comparison
+
+| Method | Type | Supervision | Output | Best For |
+|--------|------|-------------|--------|----------|
+| PCR | Dimension Reduction | Unsupervised | Continuous predictions | High-dimensional regression |
+| PLS | Dimension Reduction | Supervised | Continuous predictions | Response-guided reduction |
+| Association Rules | Pattern Mining | Unsupervised | If-then rules | Discovering relationships |
+
+## Key Takeaways
+
+### Dimensionality Reduction
+
+1. Use when $p$ is large or predictors are correlated
+2. Always standardize predictors
+3. Use cross-validation to select number of components
+4. PCR for variance-based reduction, PLS for response-guided
+5. Trade-off: dimension reduction vs information loss
+
+### Association Rules
+
+1. Requires appropriate minimum support/confidence/lift thresholds
+2. Apriori algorithm efficiently prunes search space
+3. Watch for spurious associations (multiple testing)
+4. Focus on actionable and non-obvious rules
+5. Always consider domain knowledge in interpretation
+
+# References
+
+- James, G., Witten, D., Hastie, T., & Tibshirani, R. (2021). *An Introduction to Statistical Learning* (2nd ed.), Chapters 6.3-6.4, 12
+- Agrawal, R., & Srikant, R. (1994). "Fast Algorithms for Mining Association Rules"
+- Hahsler, M., Grün, B., & Hornik, K. (2005). "arules: Mining Association Rules and Frequent Itemsets"

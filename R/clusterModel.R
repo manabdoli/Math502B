@@ -98,6 +98,7 @@ predict.ClusterClass <- function(object, newdata,
 }
 
 # Print overload
+#' @export
 print.ClusterClass <- function(x, ...){
   str(x)
 }
